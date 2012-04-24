@@ -1,0 +1,133 @@
+pluginClassNames='com.dtolabs.rundeck.plugin.overthere.OTWinRMNodeExecutor'
+
+defaultTasks 'clean','build'
+version = '1.0'
+rundeckPluginVersion= '1.0'
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'project-report'
+sourceCompatibility = 1.5
+archivesBaseName = "rundeck-winrm-plugin"
+rundeckVersion='1.4.1'
+
+
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '0.9-rc-3'
+    jarPath = 'wrapper'
+}
+
+configurations{
+    //declare custom pluginLibs configuration to include only libs for this plugin
+    pluginLibs
+
+    //declare compile to extend from pluginLibs so it inherits the dependencies
+    compile{
+        extendsFrom pluginLibs
+    }
+}
+repositories {
+    mavenCentral()
+
+    flatDir name: 'localRepository', dirs: "${rootProject.projectDir}/../rundeck/core/build/libs"
+
+}
+dependencies {
+    pluginLibs(group: 'com.xebialabs.overthere', name: 'overthere', version: '2.0.0-beta-2'){
+        exclude( module: 'commons-codec')
+    }
+
+    compile(group: 'com.dtolabs.rundeck', name: 'rundeck-core', version: rundeckVersion)
+}
+
+// task to copy plugin libs to output/lib dir
+task copyToLib(type: Copy) {
+    into "$buildDir/output/lib"
+    from configurations.pluginLibs
+}
+
+jar {
+    from "$buildDir/output"
+
+    manifest {
+
+        def libList = configurations.pluginLibs.collect {'lib/' + it.name}.join(' ')
+
+        attributes 'Rundeck-Plugin-Version': rundeckPluginVersion, 'Rundeck-Plugin-Archive': 'true', 'Rundeck-Plugin-Classnames': pluginClassNames, 'Rundeck-Plugin-Libs': "${libList}"
+    }
+}
+
+//set jar task to depend on copyToLib
+jar.dependsOn(copyToLib)
+
+
+apply plugin: 'maven'
+task mappings << {
+    println conf2ScopeMappings.mappings
+}
+conf2ScopeMappings.addMapping 1, configurations.pluginLibs, 'compile'
+conf2ScopeMappings.addMapping 1, configurations.compile, 'provided'
+
+task createPom << {
+    def libList = configurations.pluginLibs.collect {'lib/' + it.name}.join(' ')
+
+    pom {
+        project {
+            artifactId 'rundeck-winrm-plugin'
+            groupId "com.dtolabs.rundeck"
+            inceptionYear '2011'
+            packaging 'jar'
+            version version
+            name "RunDeck WinRM NodeExecutor Plugin"
+            url 'http://rundeck.org'
+            licenses {
+                license {
+                    name 'The Apache Software License, Version 2.0'
+                    url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    distribution 'repo'
+                }
+            }
+
+            build{
+                plugins{
+                    plugin{
+                        artifactId 'maven-compiler-plugin'
+                        version '2.3.2'
+                        configuration{
+                            source '1.6'
+                            target '1.6'
+                        }
+                    }
+                    plugin() {
+                        artifactId('maven-assembly-plugin')
+                        version('2.2.2')
+                        executions() {
+                            execution() {
+                                id('make-assembly')
+                                phase('package')
+                                goals() {
+                                    goal('single')
+                                }
+                            }
+                        }
+                        configuration() {
+                            appendAssemblyId('false')
+                            descriptors() {
+                                descriptor('src/main/assembly/jar.xml')
+                            }
+                            archive() {
+                                manifestEntries() {
+                                    'Rundeck-Plugin-Version'(rundeckPluginVersion)
+                                    'Rundeck-Plugin-Archive'('true')
+                                    'Rundeck-Plugin-Classnames'(pluginClassNames)
+                                    'Rundeck-Plugin-Libs'(libList)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+        }
+    }.writeTo("pom.xml")
+}
