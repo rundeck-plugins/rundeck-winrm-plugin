@@ -1,20 +1,19 @@
-pluginClassNames='com.dtolabs.rundeck.plugin.overthere.OTWinRMNodeExecutor'
+ext.pluginClassNames='com.dtolabs.rundeck.plugin.overthere.OTWinRMNodeExecutor'
 
 defaultTasks 'clean','build'
-version = '1.0'
-rundeckPluginVersion= '1.0'
+version = '1.0-beta'
+ext.rundeckPluginVersion= '1.0'
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'project-report'
 sourceCompatibility = 1.5
 archivesBaseName = "rundeck-winrm-plugin"
-rundeckVersion='1.4.1'
+ext.rundeckVersion='1.4.4-dev'
 
 
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '0.9-rc-3'
-    jarPath = 'wrapper'
+    gradleVersion = '1.0'
 }
 
 configurations{
@@ -28,16 +27,19 @@ configurations{
 }
 repositories {
     mavenCentral()
+    mavenLocal()
 
     flatDir name: 'localRepository', dirs: "${rootProject.projectDir}/../rundeck/core/build/libs"
 
 }
 dependencies {
-    pluginLibs(group: 'com.xebialabs.overthere', name: 'overthere', version: '2.0.0-beta-2'){
+    pluginLibs(group: 'com.xebialabs.overthere', name: 'overthere', version: '2.0.0-SNAPSHOT'){
         exclude( module: 'commons-codec')
     }
 
+    pluginLibs(group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.6.3')
     compile(group: 'com.dtolabs.rundeck', name: 'rundeck-core', version: rundeckVersion)
+    compile(group: 'jcifs', name: 'jcifs', version: '1.3.17')
 }
 
 // task to copy plugin libs to output/lib dir
@@ -53,7 +55,7 @@ jar {
 
         def libList = configurations.pluginLibs.collect {'lib/' + it.name}.join(' ')
 
-        attributes 'Rundeck-Plugin-Version': rundeckPluginVersion, 'Rundeck-Plugin-Archive': 'true', 'Rundeck-Plugin-Classnames': pluginClassNames, 'Rundeck-Plugin-Libs': "${libList}"
+        attributes 'Rundeck-Plugin-Version': rundeckPluginVersion, 'Rundeck-Plugin-Archive': 'true', 'Rundeck-Plugin-Classnames': pluginClassNames, 'Rundeck-Plugin-Libs': "${libList}", 'Main-Class': "com.dtolabs.rundeck.plugin.overthere.Kb5OTTest", 'Class-Path':"${libList}"
     }
 }
 
