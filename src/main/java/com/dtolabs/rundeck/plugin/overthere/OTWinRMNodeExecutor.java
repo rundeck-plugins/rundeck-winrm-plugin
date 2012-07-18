@@ -1,15 +1,10 @@
 package com.dtolabs.rundeck.plugin.overthere;
 
 
-import static com.xebialabs.overthere.ConnectionOptions.ADDRESS;
-import static com.xebialabs.overthere.ConnectionOptions.OPERATING_SYSTEM;
-import static com.xebialabs.overthere.ConnectionOptions.PASSWORD;
-import static com.xebialabs.overthere.ConnectionOptions.USERNAME;
-import static com.xebialabs.overthere.ConnectionOptions.CONNECTION_TIMEOUT_MILLIS;
-import static com.xebialabs.overthere.ConnectionOptions.PORT;
+import static com.xebialabs.overthere.ConnectionOptions.*;
 import static com.xebialabs.overthere.OperatingSystemFamily.WINDOWS;
 import static com.xebialabs.overthere.cifs.CifsConnectionBuilder.CONNECTION_TYPE;
-import static com.xebialabs.overthere.cifs.CifsConnectionType.WINRM_HTTPS;
+import static com.xebialabs.overthere.cifs.CifsConnectionType.*;
 import static com.xebialabs.overthere.util.ConsoleOverthereProcessOutputHandler.consoleHandler;
 
 import com.dtolabs.rundeck.core.plugins.Plugin;
@@ -29,6 +24,7 @@ import com.dtolabs.rundeck.core.dispatcher.DataContextUtils;
 import com.dtolabs.rundeck.core.execution.ExecutionContext;
 import com.dtolabs.rundeck.core.execution.ExecutionException;
 import com.xebialabs.overthere.cifs.CifsConnectionBuilder;
+import com.xebialabs.overthere.cifs.CifsConnectionType;
 import com.xebialabs.overthere.cifs.winrm.exception.WinRMRuntimeIOException;
 import com.xebialabs.overthere.util.DefaultAddressPortMapper;
 
@@ -45,6 +41,15 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String WINRM_TIMEOUT_PROPERTY = "winrm-timeout";
     public static final String WINRM_USER = "winrm-user";
     public static final String WINRM_PORT = "winrm-port";
+    public static final String WINRM_AUTH_TYPE = "winrm-auth-type";
+    public static final String WINRM_CERT_TRUST = "winrm-cert-trust";
+    public static final String WINRM_HOSTNAME_TRUST = "winrm-hostname-trust";
+    public static final String WINRM_PROTOCOL = "winrm-protocol";
+    public static final String KERBEROS_AUTH = "kerberos";
+    public static final String BASIC_AUTH = "basic";
+    public static final String DEBUG_KERBEROS_AUTH = "debugKerberos";
+    public static final Boolean DEBUG_KERBEROS_AUTH_DEFAULT = false;
+    public static final String DEFAULT_WINRM_PROTOCOL = "https";
 
     private Framework framework;
     private static final String PROJ_PROP_PREFIX = "project.";
@@ -92,6 +97,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         return DESC;
     }
 
+
     public NodeExecutorResult executeCommand(final ExecutionContext context, final String[] command,
                                              final INodeEntry node) throws
         ExecutionException {
@@ -104,39 +110,59 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
                 "Username must be set to connect to remote node '" + node.getNodename() + "'");
         }
 
-        final ConnectionOptions options = new ConnectionOptionsBuilder(context, node, framework).build();
+        final ConnectionOptionsBuilder connectionOptionsBuilder = new ConnectionOptionsBuilder(context, node,
+            framework);
 
-        final OverthereConnection connection = new CifsConnectionBuilder(CifsConnectionBuilder.CIFS_PROTOCOL, options,
-            new DefaultAddressPortMapper()).connect();
-
-        int exitCode = -1;
+        int result = -1;
         String message = null;
         try {
-            exitCode = connection.execute(consoleHandler(), CmdLine.build(command));
+
+            final OverthereConnection connection = new CifsConnectionBuilder(CifsConnectionBuilder.CIFS_PROTOCOL,
+                connectionOptionsBuilder.build(),
+                new DefaultAddressPortMapper()).connect();
+
+            try {
+                result = connection.execute(consoleHandler(), CmdLine.build(command));
+            } finally {
+                connection.close();
+            }
         } catch (WinRMRuntimeIOException re) {
-            if(context.getLoglevel()>2){
+            if (context.getLoglevel() > 2) {
                 re.printStackTrace(System.err);
                 message = re.getMessage();
-            }else {
+            } else {
                 message = "WinRM Error: " + re.getCause();
             }
             context.getExecutionListener().log(0,
                 "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
-        }  catch (RuntimeException re) {
-            if(context.getLoglevel()>2){
+        } catch (RuntimeException re) {
+            if (context.getLoglevel() > 2) {
                 re.printStackTrace(System.err);
                 message = re.getMessage();
-            }else {
+            } else {
                 message = "runtime exception: " + re;
             }
             context.getExecutionListener().log(0,
                 "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
-        } finally {
-            connection.close();
+        } catch (Exception e) {
+            if (context.getLoglevel() > 2) {
+                e.printStackTrace(System.err);
+                message = e.getMessage();
+            } else {
+                message = "Exception: " + e;
+            }
+            context.getExecutionListener().log(0,
+                "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
         }
-        final int resultCode = exitCode;
+
+
+        final int resultCode = result;
         final boolean status = resultCode == 0;
         final String resultmsg = message;
+        if (!status) {
+            context.getExecutionListener().log(0,
+                "[" + SERVICE_PROVIDER_TYPE + "] failed: " + resultmsg);
+        }
         return new NodeExecutorResult() {
             public int getResultCode() {
                 return resultCode;
@@ -154,9 +180,8 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
 
             }
         };
-
-
     }
+
 
     static String evaluateSecureOption(final String optionName, final ExecutionContext context) {
         if (null == optionName) {
@@ -261,7 +286,8 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         }
 
         public String getPassword() {
-            final String passwordOption = resolveProperty(WINRM_PASSWORD_OPTION, DEFAULT_WINRM_PASSWORD_OPTION, node, frameworkProject, framework);
+            final String passwordOption = resolveProperty(WINRM_PASSWORD_OPTION, DEFAULT_WINRM_PASSWORD_OPTION, node,
+                frameworkProject, framework);
             return evaluateSecureOption(passwordOption, context);
         }
 
@@ -288,6 +314,27 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             return node.extractHostname();
         }
 
+        public String getAuthType() {
+            return resolveProperty(WINRM_AUTH_TYPE, KERBEROS_AUTH, node, frameworkProject, framework);
+        }
+
+        public String getCertTrustStrategy() {
+            return resolveProperty(WINRM_CERT_TRUST, null, node, frameworkProject, framework);
+        }
+
+        public String getHostnameTrustStrategy() {
+            return resolveProperty(WINRM_HOSTNAME_TRUST, null, node, frameworkProject, framework);
+        }
+
+        public String getProtocol() {
+            return resolveProperty(WINRM_PROTOCOL, DEFAULT_WINRM_PROTOCOL, node, frameworkProject, framework);
+        }
+
+        public Boolean isDebugKerberosAuth() {
+            return resolveBooleanProperty(DEBUG_KERBEROS_AUTH, DEBUG_KERBEROS_AUTH_DEFAULT, node, frameworkProject,
+                framework);
+        }
+
         private int getPort() {
             // If the node entry contains a non-default port, configure the connection to use it.
             if (node.containsPort()) {
@@ -304,6 +351,17 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         public ConnectionOptions build() {
             final ConnectionOptions options = new ConnectionOptions();
             options.set(ADDRESS, getHostname());
+            final String authType = getAuthType();
+            final CifsConnectionType conType;
+            final boolean isHttps = "https".equalsIgnoreCase(getProtocol());
+            final boolean isKerberos = KERBEROS_AUTH.equals(authType);
+            if (isKerberos) {
+                conType = isHttps ? WINRM_HTTPS_KB5 : WINRM_HTTP_KB5;
+                options.set(CifsConnectionBuilder.DEBUG_KERBEROS_AUTH, isDebugKerberosAuth());
+            } else {
+                conType = isHttps ? WINRM_HTTPS : WINRM_HTTP;
+            }
+
             options.set(USERNAME, getUsername());
             final String password = getPassword();
             final boolean valid = null != password && !"".equals(password);
@@ -311,8 +369,20 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
                 throw new ConfigurationException("Password was not set");
             }
             options.set(PASSWORD, password);
+
+            if (isHttps && isKerberos) {
+                final String certTrustStrategy = getCertTrustStrategy();
+                if (null != certTrustStrategy) {
+                    options.set(CifsConnectionBuilder.HTTPS_CERTIFICATE_TRUST_STRATEGY, certTrustStrategy);
+                }
+                final String hostnameTrustStrategy = getHostnameTrustStrategy();
+                if (null != hostnameTrustStrategy) {
+                    options.set(CifsConnectionBuilder.HTTPS_HOSTNAME_VERIFY_STRATEGY, hostnameTrustStrategy);
+                }
+            }
+
             options.set(OPERATING_SYSTEM, WINDOWS);
-            options.set(CONNECTION_TYPE, WINRM_HTTPS);
+            options.set(CONNECTION_TYPE, conType);
             options.set(CONNECTION_TIMEOUT_MILLIS, getConnectionTimeout());
             options.set(PORT, getPort());
             return options;
