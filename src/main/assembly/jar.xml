@@ -6,6 +6,23 @@
         <format>jar</format>
     </formats>
     <includeBaseDirectory>false</includeBaseDirectory>
+
+    <fileSets>
+        <fileSet>
+            <useDefaultExcludes/>
+            <outputDirectory>META-INF</outputDirectory>
+            <includes>
+                <include>LICENSE.txt</include>
+                <include>thirdparty/*</include>
+            </includes>
+            <!--<excludes/>-->
+            <!--<fileMode/>-->
+            <!--<directoryMode/>-->
+            <!--<directory/>-->
+            <!--<lineEnding/>-->
+            <filtered/>
+        </fileSet>
+    </fileSets>
     <dependencySets>
         <dependencySet>
             <!-- dependency set that includes only the project classes unpacked -->

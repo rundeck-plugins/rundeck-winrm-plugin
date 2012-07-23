@@ -8,7 +8,7 @@ apply plugin: 'idea'
 apply plugin: 'project-report'
 sourceCompatibility = 1.5
 archivesBaseName = "rundeck-winrm-plugin"
-ext.rundeckVersion='1.4.4-dev'
+ext.rundeckVersion='1.4.1'
 
 
 
@@ -51,11 +51,17 @@ task copyToLib(type: Copy) {
 jar {
     from "$buildDir/output"
 
+    metaInf {
+        from "LICENSE.txt"
+        from("thirdparty"){
+            include "*"
+        }
+    }
     manifest {
 
         def libList = configurations.pluginLibs.collect {'lib/' + it.name}.join(' ')
 
-        attributes 'Rundeck-Plugin-Version': rundeckPluginVersion, 'Rundeck-Plugin-Archive': 'true', 'Rundeck-Plugin-Classnames': pluginClassNames, 'Rundeck-Plugin-Libs': "${libList}", 'Main-Class': "com.dtolabs.rundeck.plugin.overthere.Kb5OTTest", 'Class-Path':"${libList}"
+        attributes 'Rundeck-Plugin-File-Version': version, 'Rundeck-Plugin-Version': rundeckPluginVersion, 'Rundeck-Plugin-Archive': 'true', 'Rundeck-Plugin-Classnames': pluginClassNames, 'Rundeck-Plugin-Libs': "${libList}", 'Main-Class': "com.dtolabs.rundeck.plugin.overthere.Kb5OTTest", 'Class-Path':"${libList}"
     }
 }
 
@@ -120,6 +126,7 @@ task createPom << {
                             archive() {
                                 manifestEntries() {
                                     'Rundeck-Plugin-Version'(rundeckPluginVersion)
+                                    'Rundeck-Plugin-File-Version'(version)
                                     'Rundeck-Plugin-Archive'('true')
                                     'Rundeck-Plugin-Classnames'(pluginClassNames)
                                     'Rundeck-Plugin-Libs'(libList)
