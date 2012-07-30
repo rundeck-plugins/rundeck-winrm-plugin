@@ -62,5 +62,19 @@ Gradle build, result is `build/libs/rundeck-winrm-plugin-1.0.jar`.
 	gradle clean build
 
 Maven build, result is `target/rundeck-winrm-plugin-1.0.jar`
-	
-	mvn clean package
+
+Getting the Rundeck core jar
+====	
+
+If you're building the plug-in independently of Rundeck itself you can find the Rundeck core jar in a couple of places under your Rundeck install:
+
+	[rundeck@centos62 ~]$ find . -name rundeck-core-\*.jar
+	./cli/rundeck-core-1.4.4-dev.jar
+	./exp/webapp/WEB-INF/lib/rundeck-core-1.4.4-dev.jar
+
+Furthermore, if you're using Maven to build the plug-in you can add the jar to your local repository as follows:
+
+	mvn install:install-file -DgroupId=com.dtolabs.rundeck -DartifactId=rundeck-core -Dversion=1.4.4-dev -Dpackaging=jar -DgeneratePom=true -Dfile=rundeck-core-1.4.4-dev.jar
+
+Ultimately the jar file will be added to Maven central and made available as a separate artifact by other means besides.
+
