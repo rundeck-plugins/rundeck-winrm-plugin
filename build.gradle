@@ -9,6 +9,7 @@ apply plugin: 'project-report'
 sourceCompatibility = 1.5
 archivesBaseName = "rundeck-winrm-plugin"
 ext.rundeckVersion='1.4.1'
+ext.rundeckVersion='1.4.4'
 
 
 

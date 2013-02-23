@@ -3,6 +3,6 @@ target
 .gradle
 *.swp
 *.iws
-*.iml
 *.ipr
+*.iml
 *.sublime*
