@@ -1,24 +1,17 @@
 package com.dtolabs.rundeck.plugin.overthere;
 
 
-import static com.xebialabs.overthere.ConnectionOptions.ADDRESS;
-import static com.xebialabs.overthere.ConnectionOptions.OPERATING_SYSTEM;
-import static com.xebialabs.overthere.ConnectionOptions.PASSWORD;
-import static com.xebialabs.overthere.ConnectionOptions.USERNAME;
-import static com.xebialabs.overthere.ConnectionOptions.CONNECTION_TIMEOUT_MILLIS;
-import static com.xebialabs.overthere.ConnectionOptions.PORT;
-import static com.xebialabs.overthere.OperatingSystemFamily.WINDOWS;
-import static com.xebialabs.overthere.cifs.CifsConnectionBuilder.CONNECTION_TYPE;
-import static com.xebialabs.overthere.cifs.CifsConnectionType.WINRM_HTTPS;
 import static com.xebialabs.overthere.util.ConsoleOverthereProcessOutputHandler.consoleHandler;
 
+import com.dtolabs.rundeck.core.execution.service.NodeExecutorResultImpl;
+import com.dtolabs.rundeck.core.execution.workflow.steps.FailureReason;
+import com.dtolabs.rundeck.core.execution.workflow.steps.StepFailureReason;
+import com.dtolabs.rundeck.core.execution.workflow.steps.node.NodeStepFailureReason;
 import com.dtolabs.rundeck.core.plugins.Plugin;
 import com.dtolabs.rundeck.core.plugins.configuration.Describable;
 import com.dtolabs.rundeck.core.plugins.configuration.Description;
-import com.dtolabs.rundeck.core.plugins.configuration.Property;
-import com.xebialabs.overthere.CmdLine;
-import com.xebialabs.overthere.ConnectionOptions;
-import com.xebialabs.overthere.OverthereConnection;
+import com.dtolabs.rundeck.plugins.util.DescriptionBuilder;
+import com.xebialabs.overthere.*;
 
 import com.dtolabs.rundeck.core.execution.service.NodeExecutor;
 import com.dtolabs.rundeck.core.execution.service.NodeExecutorResult;
@@ -27,14 +20,15 @@ import com.dtolabs.rundeck.core.common.FrameworkProject;
 import com.dtolabs.rundeck.core.common.INodeEntry;
 import com.dtolabs.rundeck.core.dispatcher.DataContextUtils;
 import com.dtolabs.rundeck.core.execution.ExecutionContext;
-import com.dtolabs.rundeck.core.execution.ExecutionException;
 import com.xebialabs.overthere.cifs.CifsConnectionBuilder;
+import com.xebialabs.overthere.cifs.CifsConnectionType;
 import com.xebialabs.overthere.cifs.winrm.exception.WinRMRuntimeIOException;
+import com.xebialabs.overthere.util.ConsoleOverthereExecutionOutputHandler;
 import com.xebialabs.overthere.util.DefaultAddressPortMapper;
 
 import java.util.*;
 
-@Plugin (name = OTWinRMNodeExecutor.SERVICE_PROVIDER_TYPE, service = "NodeExecutor")
+@Plugin(name = OTWinRMNodeExecutor.SERVICE_PROVIDER_TYPE, service = "NodeExecutor")
 public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String SERVICE_PROVIDER_TYPE = "overthere-winrm";
 
@@ -56,104 +50,76 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         this.framework = framework;
     }
 
-    static final List<Property> CONFIG_PROPERTIES = new ArrayList<Property>();
-    static final Map<String, String> CONFIG_MAPPING;
-
-
-    static {
-        //TODO: add config options for SSL certificate checking
-        final Map<String, String> mapping = new HashMap<String, String>();
-        CONFIG_MAPPING = Collections.unmodifiableMap(mapping);
-    }
-
-    static final Description DESC = new Description() {
-        public String getName() {
-            return SERVICE_PROVIDER_TYPE;
-        }
-
-        public String getTitle() {
-            return "WinRM";
-        }
-
-        public String getDescription() {
-            return "Executes a command on a remote windows node via WinRM.";
-        }
-
-        public List<Property> getProperties() {
-            return null;
-        }
-
-        public Map<String, String> getPropertiesMapping() {
-            return null;
-        }
-    };
+    //TODO: add config options for SSL certificate checking
+    static final Description DESC = DescriptionBuilder.builder()
+            .name(SERVICE_PROVIDER_TYPE)
+            .title("WinRM")
+            .description("Executes a command on a remote windows node via WinRM.")
+            .build();
 
     public Description getDescription() {
         return DESC;
     }
 
+    public static enum Reason implements FailureReason {
+        WinRMProtocolError,
+    }
+
     public NodeExecutorResult executeCommand(final ExecutionContext context, final String[] command,
-                                             final INodeEntry node) throws
-        ExecutionException {
+                                             final INodeEntry node) {
         if (null == node.getHostname() || null == node.extractHostname()) {
-            throw new ExecutionException(
-                "Hostname must be set to connect to remote node '" + node.getNodename() + "'");
+            return NodeExecutorResultImpl.createFailure(StepFailureReason.ConfigurationFailure,
+                    "Hostname must be set to connect to remote node '" + node.getNodename() + "'", node);
         }
         if (null == node.extractUserName()) {
-            throw new ExecutionException(
-                "Username must be set to connect to remote node '" + node.getNodename() + "'");
+            return NodeExecutorResultImpl.createFailure(StepFailureReason.ConfigurationFailure,
+                    "Username must be set to connect to remote node '" + node.getNodename() + "'", node);
         }
 
         final ConnectionOptions options = new ConnectionOptionsBuilder(context, node, framework).build();
 
         final OverthereConnection connection = new CifsConnectionBuilder(CifsConnectionBuilder.CIFS_PROTOCOL, options,
-            new DefaultAddressPortMapper()).connect();
+                new DefaultAddressPortMapper()).connect();
 
         int exitCode = -1;
         String message = null;
         try {
-            exitCode = connection.execute(consoleHandler(), CmdLine.build(command));
+            exitCode = connection.execute(ConsoleOverthereExecutionOutputHandler.sysoutHandler(),
+                    ConsoleOverthereExecutionOutputHandler.syserrHandler(),
+                    CmdLine.build(command));
         } catch (WinRMRuntimeIOException re) {
-            if(context.getLoglevel()>2){
+            if (context.getLoglevel() > 2) {
                 re.printStackTrace(System.err);
                 message = re.getMessage();
-            }else {
+            } else {
                 message = "WinRM Error: " + re.getCause();
             }
             context.getExecutionListener().log(0,
-                "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
-        }  catch (RuntimeException re) {
-            if(context.getLoglevel()>2){
+                    "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
+            return NodeExecutorResultImpl.createFailure(Reason.WinRMProtocolError, message, re, node, -1);
+        } catch (RuntimeIOException re) {
+            if (context.getLoglevel() > 2) {
                 re.printStackTrace(System.err);
                 message = re.getMessage();
-            }else {
+            } else {
                 message = "runtime exception: " + re;
             }
             context.getExecutionListener().log(0,
-                "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
+                    "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
+            return NodeExecutorResultImpl.createFailure(StepFailureReason.IOFailure, message, re, node, -1);
         } finally {
             connection.close();
         }
         final int resultCode = exitCode;
         final boolean status = resultCode == 0;
         final String resultmsg = message;
-        return new NodeExecutorResult() {
-            public int getResultCode() {
-                return resultCode;
-            }
-
-            public boolean isSuccess() {
-                return status;
-            }
-
-            @Override
-            public String toString() {
-                return "[" + SERVICE_PROVIDER_TYPE + "] result was " + (isSuccess() ? "success" : "failure")
-                       + ", resultcode: "
-                       + getResultCode() + (null != resultmsg ? ": " + resultmsg : "");
-
-            }
-        };
+        if (status) {
+            return NodeExecutorResultImpl.createSuccess(node);
+        } else {
+            return NodeExecutorResultImpl.createFailure(NodeStepFailureReason.NonZeroResultCode,
+                    "[" + SERVICE_PROVIDER_TYPE + "] result code: " + resultCode +
+                            (null != resultmsg ? ": " + resultmsg : ""), node, resultCode);
+        }
 
 
     }
@@ -186,7 +152,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         if (null != node.getAttributes().get(nodeAttribute)) {
             return node.getAttributes().get(nodeAttribute);
         } else if (frameworkProject.hasProperty(PROJ_PROP_PREFIX + nodeAttribute)
-                   && !"".equals(frameworkProject.getProperty(PROJ_PROP_PREFIX + nodeAttribute))) {
+                && !"".equals(frameworkProject.getProperty(PROJ_PROP_PREFIX + nodeAttribute))) {
             return frameworkProject.getProperty(PROJ_PROP_PREFIX + nodeAttribute);
         } else if (framework.hasProperty(FWK_PROP_PREFIX + nodeAttribute)) {
             return framework.getProperty(FWK_PROP_PREFIX + nodeAttribute);
@@ -257,7 +223,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             this.node = node;
             this.framework = framework;
             this.frameworkProject = framework.getFrameworkProjectMgr().getFrameworkProject(
-                context.getFrameworkProject());
+                    context.getFrameworkProject());
         }
 
         public String getPassword() {
@@ -267,7 +233,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
 
         public int getConnectionTimeout() {
             return resolveIntProperty(WINRM_TIMEOUT_PROPERTY, DEFAULT_WINRM_CONNECTION_TIMEOUT, node, frameworkProject,
-                framework);
+                    framework);
         }
 
         public String getUsername() {
@@ -303,18 +269,19 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
 
         public ConnectionOptions build() {
             final ConnectionOptions options = new ConnectionOptions();
-            options.set(ADDRESS, getHostname());
-            options.set(USERNAME, getUsername());
+            options.set(ConnectionOptions.ADDRESS, getHostname());
+            options.set(ConnectionOptions.USERNAME, getUsername());
             final String password = getPassword();
             final boolean valid = null != password && !"".equals(password);
             if (!valid) {
                 throw new ConfigurationException("Password was not set");
             }
-            options.set(PASSWORD, password);
-            options.set(OPERATING_SYSTEM, WINDOWS);
-            options.set(CONNECTION_TYPE, WINRM_HTTPS);
-            options.set(CONNECTION_TIMEOUT_MILLIS, getConnectionTimeout());
-            options.set(PORT, getPort());
+            options.set(ConnectionOptions.PASSWORD, password);
+            options.set(ConnectionOptions.OPERATING_SYSTEM, OperatingSystemFamily.WINDOWS);
+            options.set(ConnectionOptions.PORT, getPort());
+            options.set(ConnectionOptions.CONNECTION_TIMEOUT_MILLIS, getConnectionTimeout());
+            options.set(CifsConnectionBuilder.WINRM_ENABLE_HTTPS, Boolean.TRUE);
+            options.set(CifsConnectionBuilder.CONNECTION_TYPE, CifsConnectionType.WINRM);
             return options;
         }
     }
