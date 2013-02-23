@@ -1,15 +1,14 @@
 ext.pluginClassNames='com.dtolabs.rundeck.plugin.overthere.OTWinRMNodeExecutor'
 
 defaultTasks 'clean','build'
-version = '1.0-beta'
-ext.rundeckPluginVersion= '1.0'
+version = '1.1'
+ext.rundeckPluginVersion= '1.1'
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'project-report'
 sourceCompatibility = 1.5
 archivesBaseName = "rundeck-winrm-plugin"
-ext.rundeckVersion='1.4.1'
-ext.rundeckVersion='1.4.4'
+ext.rundeckVersion='1.5'
 
 
 
@@ -27,20 +26,19 @@ configurations{
     }
 }
 repositories {
-    mavenCentral()
     mavenLocal()
-
-    flatDir name: 'localRepository', dirs: "${rootProject.projectDir}/../rundeck/core/build/libs"
-
+    mavenCentral()
 }
 dependencies {
-    pluginLibs(group: 'com.xebialabs.overthere', name: 'overthere', version: '2.0.0-SNAPSHOT'){
+    pluginLibs(group: 'com.xebialabs.overthere', name: 'overthere', version: '2.2.0'){
         exclude( module: 'commons-codec')
+        exclude( module: 'bcprov-jdk16')
+        exclude( module: 'jzlib')
+        exclude( module: 'sshj')
+        exclude( module: 'commons-net')
     }
 
-    pluginLibs(group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.6.3')
-    compile(group: 'com.dtolabs.rundeck', name: 'rundeck-core', version: rundeckVersion)
-    compile(group: 'jcifs', name: 'jcifs', version: '1.3.17')
+    compile(group: 'org.rundeck', name: 'rundeck-core', version: rundeckVersion)
 }
 
 // task to copy plugin libs to output/lib dir

@@ -1,37 +1,39 @@
 package com.dtolabs.rundeck.plugin.overthere;
 
 
-import static com.xebialabs.overthere.ConnectionOptions.*;
-import static com.xebialabs.overthere.OperatingSystemFamily.WINDOWS;
-import static com.xebialabs.overthere.cifs.CifsConnectionBuilder.CONNECTION_TYPE;
-import static com.xebialabs.overthere.cifs.CifsConnectionType.*;
-import static com.xebialabs.overthere.util.ConsoleOverthereProcessOutputHandler.consoleHandler;
-
-import com.dtolabs.rundeck.core.plugins.Plugin;
-import com.dtolabs.rundeck.core.plugins.configuration.Describable;
-import com.dtolabs.rundeck.core.plugins.configuration.Description;
-import com.dtolabs.rundeck.core.plugins.configuration.Property;
-import com.dtolabs.rundeck.core.plugins.configuration.PropertyUtil;
-import com.xebialabs.overthere.CmdLine;
-import com.xebialabs.overthere.ConnectionOptions;
-import com.xebialabs.overthere.OverthereConnection;
-
-import com.dtolabs.rundeck.core.execution.service.NodeExecutor;
-import com.dtolabs.rundeck.core.execution.service.NodeExecutorResult;
 import com.dtolabs.rundeck.core.common.Framework;
 import com.dtolabs.rundeck.core.common.FrameworkProject;
 import com.dtolabs.rundeck.core.common.INodeEntry;
 import com.dtolabs.rundeck.core.dispatcher.DataContextUtils;
 import com.dtolabs.rundeck.core.execution.ExecutionContext;
-import com.dtolabs.rundeck.core.execution.ExecutionException;
+import com.dtolabs.rundeck.core.execution.service.NodeExecutor;
+import com.dtolabs.rundeck.core.execution.service.NodeExecutorResult;
+import com.dtolabs.rundeck.core.execution.service.NodeExecutorResultImpl;
+import com.dtolabs.rundeck.core.execution.workflow.steps.FailureReason;
+import com.dtolabs.rundeck.core.execution.workflow.steps.StepFailureReason;
+import com.dtolabs.rundeck.core.execution.workflow.steps.node.NodeStepFailureReason;
+import com.dtolabs.rundeck.core.plugins.Plugin;
+import com.dtolabs.rundeck.core.plugins.configuration.Describable;
+import com.dtolabs.rundeck.core.plugins.configuration.Description;
+import com.dtolabs.rundeck.core.plugins.configuration.PropertyUtil;
+import com.dtolabs.rundeck.plugins.util.DescriptionBuilder;
+import com.xebialabs.overthere.*;
 import com.xebialabs.overthere.cifs.CifsConnectionBuilder;
 import com.xebialabs.overthere.cifs.CifsConnectionType;
+import com.xebialabs.overthere.cifs.WinrmHttpsCertificateTrustStrategy;
+import com.xebialabs.overthere.cifs.WinrmHttpsHostnameVerificationStrategy;
 import com.xebialabs.overthere.cifs.winrm.exception.WinRMRuntimeIOException;
+import com.xebialabs.overthere.util.ConsoleOverthereExecutionOutputHandler;
 import com.xebialabs.overthere.util.DefaultAddressPortMapper;
 
 import java.util.*;
 
-@Plugin (name = OTWinRMNodeExecutor.SERVICE_PROVIDER_TYPE, service = "NodeExecutor")
+import static com.xebialabs.overthere.ConnectionOptions.*;
+import static com.xebialabs.overthere.OperatingSystemFamily.WINDOWS;
+import static com.xebialabs.overthere.cifs.CifsConnectionBuilder.CONNECTION_TYPE;
+import static com.xebialabs.overthere.util.ConsoleOverthereProcessOutputHandler.consoleHandler;
+
+@Plugin(name = OTWinRMNodeExecutor.SERVICE_PROVIDER_TYPE, service = "NodeExecutor")
 public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String SERVICE_PROVIDER_TYPE = "overthere-winrm";
 
@@ -85,79 +87,52 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         this.framework = framework;
     }
 
-    static final List<Property> CONFIG_PROPERTIES = new ArrayList<Property>();
-    static final Map<String, String> CONFIG_MAPPING;
+    //TODO: add config options for SSL certificate checking
+    static final Description DESC = DescriptionBuilder.builder()
+            .name(SERVICE_PROVIDER_TYPE)
+            .title("WinRM")
+            .description("Executes a command on a remote windows node via WinRM.")
+            .property(PropertyUtil.select(CONFIG_AUTHENTICATION, "Authentication",
+                    "Authentication mechanism to use",
+                    true, DEFAULT_AUTH_TYPE, Arrays.asList(AUTH_TYPE_KERBEROS, AUTH_TYPE_BASIC)))
+
+            .property(PropertyUtil.select(CONFIG_PROTOCOL, "WinRM Protocol",
+                    "HTTP Protocol",
+                    true, DEFAULT_WINRM_PROTOCOL, Arrays.asList(WINRM_PROTOCOL_HTTP, WINRM_PROTOCOL_HTTPS)))
+
+            .property(PropertyUtil.select(CONFIG_CERT_TRUST, "HTTPS Certificate Trust",
+                    "Strategy for certificate trust (Kerberos only)",
+                    false, DEFAULT_CERT_TRUST, Arrays.asList(CERT_TRUST_ALL, CERT_TRUST_SELF_SIGNED,
+                    CERT_TRUST_DEFAULT)))
 
 
-    static {
-        CONFIG_PROPERTIES.add(PropertyUtil.select(CONFIG_AUTHENTICATION, "Authentication",
-            "Authentication mechanism to use",
-            true, DEFAULT_AUTH_TYPE, Arrays.asList(AUTH_TYPE_KERBEROS, AUTH_TYPE_BASIC)));
-
-        CONFIG_PROPERTIES.add(PropertyUtil.select(CONFIG_PROTOCOL, "WinRM Protocol",
-            "HTTP Protocol",
-            true, DEFAULT_WINRM_PROTOCOL, Arrays.asList(WINRM_PROTOCOL_HTTP, WINRM_PROTOCOL_HTTPS)));
-
-        CONFIG_PROPERTIES.add(PropertyUtil.select(CONFIG_CERT_TRUST, "HTTPS Certificate Trust",
-            "Strategy for certificate trust (Kerberos only)",
-            false, DEFAULT_CERT_TRUST, Arrays.asList(CERT_TRUST_ALL, CERT_TRUST_SELF_SIGNED,
-            CERT_TRUST_DEFAULT)));
-
-
-        CONFIG_PROPERTIES.add(PropertyUtil.select(CONFIG_HOSTNAME_VERIFY, "HTTPS Hostname Verification",
-            "Strategy for hostname verification (Kerberos only)",
-            false, DEFAULT_HOSTNAME_VERIFY, Arrays.asList(HOSTNAME_TRUST_ALL, HOSTNAME_TRUST_BROWSER_COMPATIBLE,
-            HOSTNAME_TRUST_STRICT)));
-
-
-
-
-        final Map<String, String> mapping = new HashMap<String, String>();
-        mapping.put(CONFIG_AUTHENTICATION, PROJ_PROP_PREFIX + WINRM_AUTH_TYPE);
-        mapping.put(CONFIG_PROTOCOL, PROJ_PROP_PREFIX + WINRM_PROTOCOL);
-        mapping.put(CONFIG_CERT_TRUST, PROJ_PROP_PREFIX + WINRM_CERT_TRUST);
-        mapping.put(CONFIG_HOSTNAME_VERIFY, PROJ_PROP_PREFIX + WINRM_HOSTNAME_TRUST);
-
-        CONFIG_MAPPING = Collections.unmodifiableMap(mapping);
-    }
-
-    static final Description DESC = new Description() {
-        public String getName() {
-            return SERVICE_PROVIDER_TYPE;
-        }
-
-        public String getTitle() {
-            return "WinRM";
-        }
-
-        public String getDescription() {
-            return "Executes a command on a remote windows node via WinRM.";
-        }
-
-        public List<Property> getProperties() {
-            return CONFIG_PROPERTIES;
-        }
-
-        public Map<String, String> getPropertiesMapping() {
-            return CONFIG_MAPPING;
-        }
-    };
+            .property(PropertyUtil.select(CONFIG_HOSTNAME_VERIFY, "HTTPS Hostname Verification",
+                    "Strategy for hostname verification (Kerberos only)",
+                    false, DEFAULT_HOSTNAME_VERIFY, Arrays.asList(HOSTNAME_TRUST_ALL, HOSTNAME_TRUST_BROWSER_COMPATIBLE,
+                    HOSTNAME_TRUST_STRICT)))
+            .mapping(CONFIG_AUTHENTICATION, PROJ_PROP_PREFIX + WINRM_AUTH_TYPE)
+            .mapping(CONFIG_PROTOCOL, PROJ_PROP_PREFIX + WINRM_PROTOCOL)
+            .mapping(CONFIG_CERT_TRUST, PROJ_PROP_PREFIX + WINRM_CERT_TRUST)
+            .mapping(CONFIG_HOSTNAME_VERIFY, PROJ_PROP_PREFIX + WINRM_HOSTNAME_TRUST)
+            .build();
 
     public Description getDescription() {
         return DESC;
     }
 
+    public static enum Reason implements FailureReason {
+        WinRMProtocolError,
+    }
 
     public NodeExecutorResult executeCommand(final ExecutionContext context, final String[] command,
-                                             final INodeEntry node) throws
-        ExecutionException {
+                                             final INodeEntry node) {
         if (null == node.getHostname() || null == node.extractHostname()) {
-            throw new ExecutionException(
-                "Hostname must be set to connect to remote node '" + node.getNodename() + "'");
+            return NodeExecutorResultImpl.createFailure(StepFailureReason.ConfigurationFailure,
+                    "Hostname must be set to connect to remote node '" + node.getNodename() + "'", node);
         }
         if (null == node.extractUserName()) {
-            throw new ExecutionException(
-                "Username must be set to connect to remote node '" + node.getNodename() + "'");
+            return NodeExecutorResultImpl.createFailure(StepFailureReason.ConfigurationFailure,
+                    "Username must be set to connect to remote node '" + node.getNodename() + "'", node);
         }
 
         final ConnectionOptionsBuilder connectionOptionsBuilder = new ConnectionOptionsBuilder(context, node,
@@ -172,7 +147,9 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
                 new DefaultAddressPortMapper()).connect();
 
             try {
-                result = connection.execute(consoleHandler(), CmdLine.build(command));
+                result = connection.execute(ConsoleOverthereExecutionOutputHandler.sysoutHandler(),
+                        ConsoleOverthereExecutionOutputHandler.syserrHandler(),
+                        CmdLine.build(command));
             } finally {
                 connection.close();
             }
@@ -184,8 +161,9 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
                 message = "WinRM Error: " + re.getCause();
             }
             context.getExecutionListener().log(0,
-                "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
-        } catch (RuntimeException re) {
+                    "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
+            return NodeExecutorResultImpl.createFailure(Reason.WinRMProtocolError, message, re, node, -1);
+        } catch (RuntimeIOException re) {
             if (context.getLoglevel() > 2) {
                 re.printStackTrace(System.err);
                 message = re.getMessage();
@@ -193,16 +171,8 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
                 message = "runtime exception: " + re;
             }
             context.getExecutionListener().log(0,
-                "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
-        } catch (Exception e) {
-            if (context.getLoglevel() > 2) {
-                e.printStackTrace(System.err);
-                message = e.getMessage();
-            } else {
-                message = "Exception: " + e;
-            }
-            context.getExecutionListener().log(0,
-                "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
+                    "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
+            return NodeExecutorResultImpl.createFailure(StepFailureReason.IOFailure, message, re, node, -1);
         }
 
 
@@ -219,23 +189,14 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             }
         }
         final String resultmsg = message;
-        return new NodeExecutorResult() {
-            public int getResultCode() {
-                return resultCode;
-            }
 
-            public boolean isSuccess() {
-                return status;
-            }
-
-            @Override
-            public String toString() {
-                return "[" + SERVICE_PROVIDER_TYPE + "] result was " + (isSuccess() ? "success" : "failure")
-                       + ", resultcode: "
-                       + getResultCode() + (null != resultmsg ? ": " + resultmsg : "");
-
-            }
-        };
+        if (status) {
+            return NodeExecutorResultImpl.createSuccess(node);
+        } else {
+            return NodeExecutorResultImpl.createFailure(NodeStepFailureReason.NonZeroResultCode,
+                    "[" + SERVICE_PROVIDER_TYPE + "] result code: " + resultCode +
+                            (null != resultmsg ? ": " + resultmsg : ""), node, resultCode);
+        }
     }
 
 
@@ -267,7 +228,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         if (null != node.getAttributes().get(nodeAttribute)) {
             return node.getAttributes().get(nodeAttribute);
         } else if (frameworkProject.hasProperty(PROJ_PROP_PREFIX + nodeAttribute)
-                   && !"".equals(frameworkProject.getProperty(PROJ_PROP_PREFIX + nodeAttribute))) {
+                && !"".equals(frameworkProject.getProperty(PROJ_PROP_PREFIX + nodeAttribute))) {
             return frameworkProject.getProperty(PROJ_PROP_PREFIX + nodeAttribute);
         } else if (framework.hasProperty(FWK_PROP_PREFIX + nodeAttribute)) {
             return framework.getProperty(FWK_PROP_PREFIX + nodeAttribute);
@@ -338,7 +299,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             this.node = node;
             this.framework = framework;
             this.frameworkProject = framework.getFrameworkProjectMgr().getFrameworkProject(
-                context.getFrameworkProject());
+                    context.getFrameworkProject());
         }
 
         public String getPassword() {
@@ -349,7 +310,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
 
         public int getConnectionTimeout() {
             return resolveIntProperty(WINRM_TIMEOUT_PROPERTY, DEFAULT_WINRM_CONNECTION_TIMEOUT, node, frameworkProject,
-                framework);
+                    framework);
         }
         public static String nonBlank(String input){
             if (null == input || "".equals(input.trim())) {
@@ -415,14 +376,11 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             final ConnectionOptions options = new ConnectionOptions();
             options.set(ADDRESS, getHostname());
             final String authType = getAuthType();
-            final CifsConnectionType conType;
+            final CifsConnectionType conType=CifsConnectionType.WINRM;
             final boolean isHttps = WINRM_PROTOCOL_HTTPS.equalsIgnoreCase(getProtocol());
             final boolean isKerberos = AUTH_TYPE_KERBEROS.equals(authType);
             if (isKerberos) {
-                conType = isHttps ? WINRM_HTTPS_KB5 : WINRM_HTTP_KB5;
-                options.set(CifsConnectionBuilder.DEBUG_KERBEROS_AUTH, isDebugKerberosAuth());
-            } else {
-                conType = isHttps ? WINRM_HTTPS : WINRM_HTTP;
+                options.set(CifsConnectionBuilder.WINRM_KERBEROS_DEBUG, isDebugKerberosAuth());
             }
 
             options.set(USERNAME, getUsername());
@@ -435,12 +393,14 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
 
             if (isHttps && isKerberos) {
                 final String certTrustStrategy = getCertTrustStrategy();
+                WinrmHttpsCertificateTrustStrategy strategy = WinrmHttpsCertificateTrustStrategy.valueOf(certTrustStrategy);
                 if (null != certTrustStrategy) {
-                    options.set(CifsConnectionBuilder.HTTPS_CERTIFICATE_TRUST_STRATEGY, certTrustStrategy);
+                    options.set(CifsConnectionBuilder.WINRM_HTTPS_CERTIFICATE_TRUST_STRATEGY, strategy);
                 }
                 final String hostnameTrustStrategy = getHostnameTrustStrategy();
+                WinrmHttpsHostnameVerificationStrategy hostStrat = WinrmHttpsHostnameVerificationStrategy.valueOf(hostnameTrustStrategy);
                 if (null != hostnameTrustStrategy) {
-                    options.set(CifsConnectionBuilder.HTTPS_HOSTNAME_VERIFY_STRATEGY, hostnameTrustStrategy);
+                    options.set(CifsConnectionBuilder.WINRM_HTTPS_HOSTNAME_VERIFICATION_STRATEGY, hostnameTrustStrategy);
                 }
             }
 
@@ -448,6 +408,8 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             options.set(CONNECTION_TYPE, conType);
             options.set(CONNECTION_TIMEOUT_MILLIS, getConnectionTimeout());
             options.set(PORT, getPort(isHttps ? DEFAULT_HTTPS_PORT : DEFAULT_HTTP_PORT));
+            options.set(CifsConnectionBuilder.WINRM_ENABLE_HTTPS, isHttps);
+            options.set(CifsConnectionBuilder.CONNECTION_TYPE, CifsConnectionType.WINRM);
             return options;
         }
     }
