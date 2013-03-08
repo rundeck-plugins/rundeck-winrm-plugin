@@ -1,14 +1,14 @@
 pluginClassNames='com.dtolabs.rundeck.plugin.overthere.OTWinRMNodeExecutor'
 
 defaultTasks 'clean','build'
-version = '1.0-beta'
+version = '1.0-beta-2'
 rundeckPluginVersion= '1.0'
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'project-report'
 sourceCompatibility = 1.5
 archivesBaseName = "rundeck-winrm-plugin"
-rundeckVersion='1.4.4-dev'
+rundeckVersion='1.4.5'
 
 
 

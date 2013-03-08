@@ -9,6 +9,7 @@ import static com.xebialabs.overthere.ConnectionOptions.CONNECTION_TIMEOUT_MILLI
 import static com.xebialabs.overthere.ConnectionOptions.PORT;
 import static com.xebialabs.overthere.OperatingSystemFamily.WINDOWS;
 import static com.xebialabs.overthere.cifs.CifsConnectionBuilder.CONNECTION_TYPE;
+import static com.xebialabs.overthere.cifs.CifsConnectionType.WINRM_HTTP;
 import static com.xebialabs.overthere.cifs.CifsConnectionType.WINRM_HTTPS;
 import static com.xebialabs.overthere.util.ConsoleOverthereProcessOutputHandler.consoleHandler;
 
@@ -39,9 +40,12 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String SERVICE_PROVIDER_TYPE = "overthere-winrm";
 
     public static final int DEFAULT_WINRM_CONNECTION_TIMEOUT = 15000;
+    public static final boolean DEFAULT_WINRM_CONNECTION_ENCRYPTED = true;
     public static final String WINRM_PASSWORD_OPTION = "winrm-password-option";
     public static final String DEFAULT_WINRM_PASSWORD_OPTION = "option.winrmPassword";
     public static final int DEFAULT_WINRM_PORT = 5986;
+    public static final int DEFAULT_WINRM_UNENCRYPTED_PORT = 5985;
+    public static final String WINRM_CONNTYPE_PROPERTY = "winrm-encrypted";
     public static final String WINRM_TIMEOUT_PROPERTY = "winrm-timeout";
     public static final String WINRM_USER = "winrm-user";
     public static final String WINRM_PORT = "winrm-port";
@@ -265,6 +269,11 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             return evaluateSecureOption(passwordOption, context);
         }
 
+        public boolean getConnectionType() {
+            return resolveBooleanProperty(WINRM_CONNTYPE_PROPERTY, DEFAULT_WINRM_CONNECTION_ENCRYPTED,
+                node, frameworkProject, framework);
+        }
+
         public int getConnectionTimeout() {
             return resolveIntProperty(WINRM_TIMEOUT_PROPERTY, DEFAULT_WINRM_CONNECTION_TIMEOUT, node, frameworkProject,
                 framework);
@@ -288,7 +297,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             return node.extractHostname();
         }
 
-        private int getPort() {
+        private int getPort(boolean encrypted) {
             // If the node entry contains a non-default port, configure the connection to use it.
             if (node.containsPort()) {
                 try {
@@ -297,7 +306,8 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
                     throw new ConfigurationException("Port number is not valid: " + node.extractPort(), e);
                 }
             } else {
-                return resolveIntProperty(WINRM_PORT, DEFAULT_WINRM_PORT, node, frameworkProject, framework);
+                final int defaultPort = encrypted ? DEFAULT_WINRM_PORT : DEFAULT_WINRM_UNENCRYPTED_PORT;
+                return resolveIntProperty(WINRM_PORT, defaultPort, node, frameworkProject, framework);
             }
         }
 
@@ -310,11 +320,12 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             if (!valid) {
                 throw new ConfigurationException("Password was not set");
             }
+            final boolean encrypted = getConnectionType();
             options.set(PASSWORD, password);
             options.set(OPERATING_SYSTEM, WINDOWS);
-            options.set(CONNECTION_TYPE, WINRM_HTTPS);
+            options.set(CONNECTION_TYPE, encrypted ? WINRM_HTTPS : WINRM_HTTP);
             options.set(CONNECTION_TIMEOUT_MILLIS, getConnectionTimeout());
-            options.set(PORT, getPort());
+            options.set(PORT, getPort(encrypted));
             return options;
         }
     }
