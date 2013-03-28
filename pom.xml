@@ -10,7 +10,7 @@
   <parent>
     <artifactId>rundeck-plugins-parent</artifactId>
     <groupId>org.rundeck-plugins</groupId>
-    <version>1-SNAPSHOT</version>
+    <version>1</version>
   </parent>
 
   <build>
