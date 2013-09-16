@@ -8,12 +8,12 @@ apply plugin: 'idea'
 apply plugin: 'project-report'
 sourceCompatibility = 1.5
 archivesBaseName = "rundeck-winrm-plugin"
-ext.rundeckVersion='1.5'
+ext.rundeckVersion='1.6.1'
 
 
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '1.0'
+    gradleVersion = '1.7'
 }
 
 configurations{
@@ -31,12 +31,19 @@ repositories {
 }
 dependencies {
     pluginLibs(group: 'com.xebialabs.overthere', name: 'overthere', version: '2.2.0'){
-        exclude( module: 'commons-codec')
+//        exclude( module: 'commons-codec')
         exclude( module: 'bcprov-jdk16')
         exclude( module: 'jzlib')
         exclude( module: 'sshj')
         exclude( module: 'commons-net')
+        exclude( module: 'servlet-api')
+        exclude( module: 'xom')
+        exclude( module: 'jdom')
+        exclude( module: 'dom4j')
+        exclude( module: 'jaxen')
+        exclude( module: 'icu4j')
     }
+    pluginLibs(group: 'org.slf4j', name: 'slf4j-simple', version: '1.6.3')
 
     compile(group: 'org.rundeck', name: 'rundeck-core', version: rundeckVersion)
 }
@@ -60,7 +67,12 @@ jar {
 
         def libList = configurations.pluginLibs.collect {'lib/' + it.name}.join(' ')
 
-        attributes 'Rundeck-Plugin-File-Version': version, 'Rundeck-Plugin-Version': rundeckPluginVersion, 'Rundeck-Plugin-Archive': 'true', 'Rundeck-Plugin-Classnames': pluginClassNames, 'Rundeck-Plugin-Libs': "${libList}", 'Main-Class': "com.dtolabs.rundeck.plugin.overthere.Kb5OTTest", 'Class-Path':"${libList}"
+        attributes 'Rundeck-Plugin-File-Version': version,
+                'Rundeck-Plugin-Version': rundeckPluginVersion,
+                'Rundeck-Plugin-Archive': 'true',
+                'Rundeck-Plugin-Classnames': pluginClassNames,
+                'Rundeck-Plugin-Libs': "${libList}"
+
     }
 }
 
