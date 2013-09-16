@@ -68,8 +68,8 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final Boolean DEFAULT_DEBUG_KERBEROS_AUTH = false;
     public static final String DEFAULT_WINRM_PROTOCOL = WINRM_PROTOCOL_HTTPS;
 
-    public static final String DEFAULT_CERT_TRUST= CERT_TRUST_DEFAULT;
-    public static final String DEFAULT_HOSTNAME_VERIFY= HOSTNAME_TRUST_BROWSER_COMPATIBLE;
+    public static final WinrmHttpsCertificateTrustStrategy DEFAULT_CERT_TRUST= WinrmHttpsCertificateTrustStrategy.STRICT;
+    public static final WinrmHttpsHostnameVerificationStrategy DEFAULT_HOSTNAME_VERIFY= WinrmHttpsHostnameVerificationStrategy.BROWSER_COMPATIBLE;
 
     //Config properties for GUI
     public static final String CONFIG_AUTHENTICATION = "authentication";
@@ -102,13 +102,13 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
 
             .property(PropertyUtil.select(CONFIG_CERT_TRUST, "HTTPS Certificate Trust",
                     "Strategy for certificate trust (Kerberos only)",
-                    false, DEFAULT_CERT_TRUST, Arrays.asList(CERT_TRUST_ALL, CERT_TRUST_SELF_SIGNED,
+                    false, DEFAULT_CERT_TRUST.toString(), Arrays.asList(CERT_TRUST_ALL, CERT_TRUST_SELF_SIGNED,
                     CERT_TRUST_DEFAULT)))
 
 
             .property(PropertyUtil.select(CONFIG_HOSTNAME_VERIFY, "HTTPS Hostname Verification",
                     "Strategy for hostname verification (Kerberos only)",
-                    false, DEFAULT_HOSTNAME_VERIFY, Arrays.asList(HOSTNAME_TRUST_ALL, HOSTNAME_TRUST_BROWSER_COMPATIBLE,
+                    false, DEFAULT_HOSTNAME_VERIFY.toString(), Arrays.asList(HOSTNAME_TRUST_ALL, HOSTNAME_TRUST_BROWSER_COMPATIBLE,
                     HOSTNAME_TRUST_STRICT)))
             .mapping(CONFIG_AUTHENTICATION, PROJ_PROP_PREFIX + WINRM_AUTH_TYPE)
             .mapping(CONFIG_PROTOCOL, PROJ_PROP_PREFIX + WINRM_PROTOCOL)
@@ -343,11 +343,12 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         }
 
         public String getCertTrustStrategy() {
-            return resolveProperty(WINRM_CERT_TRUST, null, node, frameworkProject, framework);
+            return resolveProperty(WINRM_CERT_TRUST, DEFAULT_CERT_TRUST.toString(), node, frameworkProject, framework);
         }
 
         public String getHostnameTrustStrategy() {
-            return resolveProperty(WINRM_HOSTNAME_TRUST, null, node, frameworkProject, framework);
+            return resolveProperty(WINRM_HOSTNAME_TRUST, DEFAULT_HOSTNAME_VERIFY.toString(), node, frameworkProject,
+                    framework);
         }
 
         public String getProtocol() {
@@ -400,7 +401,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
                 final String hostnameTrustStrategy = getHostnameTrustStrategy();
                 WinrmHttpsHostnameVerificationStrategy hostStrat = WinrmHttpsHostnameVerificationStrategy.valueOf(hostnameTrustStrategy);
                 if (null != hostnameTrustStrategy) {
-                    options.set(CifsConnectionBuilder.WINRM_HTTPS_HOSTNAME_VERIFICATION_STRATEGY, hostnameTrustStrategy);
+                    options.set(CifsConnectionBuilder.WINRM_HTTPS_HOSTNAME_VERIFICATION_STRATEGY, hostStrat);
                 }
             }
 
