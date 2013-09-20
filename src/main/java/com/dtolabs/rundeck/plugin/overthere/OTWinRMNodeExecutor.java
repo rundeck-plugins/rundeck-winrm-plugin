@@ -30,8 +30,6 @@ import java.util.*;
 
 import static com.xebialabs.overthere.ConnectionOptions.*;
 import static com.xebialabs.overthere.OperatingSystemFamily.WINDOWS;
-import static com.xebialabs.overthere.cifs.CifsConnectionBuilder.CONNECTION_TYPE;
-import static com.xebialabs.overthere.util.ConsoleOverthereProcessOutputHandler.consoleHandler;
 
 @Plugin(name = OTWinRMNodeExecutor.SERVICE_PROVIDER_TYPE, service = "NodeExecutor")
 public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
@@ -42,7 +40,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String DEFAULT_WINRM_PASSWORD_OPTION = "option.winrmPassword";
     public static final int DEFAULT_HTTPS_PORT = 5986;
     public static final int DEFAULT_HTTP_PORT = 5985;
-    public static final String WINRM_TIMEOUT_PROPERTY = "winrm-timeout";
+    public static final String WINRM_CONNECTION_TIMEOUT_PROPERTY = "winrm-connection-timeout";
     public static final String WINRM_USER = "winrm-user";
     public static final String WINRM_PORT = "winrm-port";
     public static final String WINRM_AUTH_TYPE = "winrm-auth-type";
@@ -53,6 +51,10 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String AUTH_TYPE_BASIC = "basic";
     public static final String WINRM_PROTOCOL_HTTPS = "https";
     public static final String WINRM_PROTOCOL_HTTP = "http";
+    public static final String WINRM_SPN_ADD_PORT = "winrm-spn-add-port";
+    public static final String WINRM_SPN_USE_HTTP = "winrm-spn-use-http";
+    public static final String WINRM_LOCALE = "winrm-locale";
+    public static final String WINRM_TIMEOUT = "winrm-timeout";
 
     public static final String HOSTNAME_TRUST_BROWSER_COMPATIBLE = "browser-compatible";
     public static final String HOSTNAME_TRUST_STRICT= "strict";
@@ -76,18 +78,20 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String CONFIG_PROTOCOL= "protocol";
     public static final String CONFIG_CERT_TRUST= "certTrust";
     public static final String CONFIG_HOSTNAME_VERIFY= "hostnameVerify";
+    public static final String CONFIG_SPN_ADD_PORT= "spnAddPort";
+    public static final String CONFIG_SPN_USE_HTTP= "spnUseHttp";
+    public static final String CONFIG_LOCALE= "locale";
+    public static final String CONFIG_WINRM_TIMEOUT= "winrmTimeout";
+    private static final String CONFIG_TIMEOUT = "timeout";
 
     private Framework framework;
     private static final String PROJ_PROP_PREFIX = "project.";
     private static final String FWK_PROP_PREFIX = "framework.";
-    private static final String PROJ_PROP_WINRM_TIMEOUT = PROJ_PROP_PREFIX + WINRM_TIMEOUT_PROPERTY;
-    private static final String CONFIG_TIMEOUT = "timeout";
 
     public OTWinRMNodeExecutor(final Framework framework) {
         this.framework = framework;
     }
 
-    //TODO: add config options for SSL certificate checking
     static final Description DESC = DescriptionBuilder.builder()
             .name(SERVICE_PROVIDER_TYPE)
             .title("WinRM")
@@ -108,12 +112,38 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
 
             .property(PropertyUtil.select(CONFIG_HOSTNAME_VERIFY, "HTTPS Hostname Verification",
                     "Strategy for hostname verification (Kerberos only)",
-                    false, DEFAULT_HOSTNAME_VERIFY.toString(), Arrays.asList(HOSTNAME_TRUST_ALL, HOSTNAME_TRUST_BROWSER_COMPATIBLE,
+                    false, DEFAULT_HOSTNAME_VERIFY.toString(), Arrays.asList(HOSTNAME_TRUST_ALL,
+                    HOSTNAME_TRUST_BROWSER_COMPATIBLE,
                     HOSTNAME_TRUST_STRICT)))
+
+
+            .property(PropertyUtil.bool(CONFIG_SPN_ADD_PORT, "SPN adds Port",
+                    "If true, add the port (e.g. 5985) to the SPN used for Kerberos Authentication.",
+                    true, "false"))
+
+            .property(PropertyUtil.bool(CONFIG_SPN_USE_HTTP, "SPN uses HTTP",
+                    "If true, use HTTP instead of WSMAN for the SPN used for Kerberos Authentication.",
+                    true, "false"))
+
+            .property(PropertyUtil.string(CONFIG_LOCALE, "WinRM Locale",
+                    "Locale, default: en-us.", false, null))
+
+            .property(PropertyUtil.string(CONFIG_WINRM_TIMEOUT, "WinRM Timeout",
+                    "WinRM protocol Timeout, in XML Schema Duration format. (Default: PT60.000S) see: <http://www.w3" +
+                            ".org/TR/xmlschema-2/#isoformats>", false, null))
+
+            .property(PropertyUtil.longProp(CONFIG_TIMEOUT, "Connection Timeout", "Connection timeout, " +
+                    "in milliseconds. Default: 12000 (2 minutes).", false, null))
+
             .mapping(CONFIG_AUTHENTICATION, PROJ_PROP_PREFIX + WINRM_AUTH_TYPE)
             .mapping(CONFIG_PROTOCOL, PROJ_PROP_PREFIX + WINRM_PROTOCOL)
             .mapping(CONFIG_CERT_TRUST, PROJ_PROP_PREFIX + WINRM_CERT_TRUST)
             .mapping(CONFIG_HOSTNAME_VERIFY, PROJ_PROP_PREFIX + WINRM_HOSTNAME_TRUST)
+            .mapping(CONFIG_SPN_ADD_PORT, PROJ_PROP_PREFIX + WINRM_SPN_ADD_PORT)
+            .mapping(CONFIG_SPN_USE_HTTP, PROJ_PROP_PREFIX + WINRM_SPN_USE_HTTP)
+            .mapping(CONFIG_LOCALE, PROJ_PROP_PREFIX + WINRM_LOCALE)
+            .mapping(CONFIG_WINRM_TIMEOUT, PROJ_PROP_PREFIX + WINRM_CONNECTION_TIMEOUT_PROPERTY)
+            .mapping(CONFIG_TIMEOUT, PROJ_PROP_PREFIX + WINRM_TIMEOUT)
             .build();
 
     public Description getDescription() {
@@ -309,7 +339,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         }
 
         public int getConnectionTimeout() {
-            return resolveIntProperty(WINRM_TIMEOUT_PROPERTY, DEFAULT_WINRM_CONNECTION_TIMEOUT, node, frameworkProject,
+            return resolveIntProperty(WINRM_CONNECTION_TIMEOUT_PROPERTY, DEFAULT_WINRM_CONNECTION_TIMEOUT, node, frameworkProject,
                     framework);
         }
         public static String nonBlank(String input){
@@ -359,6 +389,22 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             return resolveBooleanProperty(DEBUG_KERBEROS_AUTH, DEFAULT_DEBUG_KERBEROS_AUTH, node, frameworkProject,
                 framework);
         }
+        public Boolean isWinrmSpnAddPort() {
+            return resolveBooleanProperty(WINRM_SPN_ADD_PORT, false, node, frameworkProject,
+                framework);
+        }
+        public Boolean isWinrmSpnUseHttp() {
+            return resolveBooleanProperty(WINRM_SPN_USE_HTTP, false, node, frameworkProject,
+                framework);
+        }
+
+        public String getWinrmLocale() {
+            return resolveProperty(WINRM_LOCALE, null, node, frameworkProject, framework);
+        }
+
+        public String getWinrmTimeout() {
+            return resolveProperty(WINRM_TIMEOUT, null, node, frameworkProject, framework);
+        }
 
         private int getPort(final int defaultPort) {
             // If the node entry contains a non-default port, configure the connection to use it.
@@ -375,24 +421,27 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
 
         public ConnectionOptions build() {
             final ConnectionOptions options = new ConnectionOptions();
-            options.set(ADDRESS, getHostname());
             final String authType = getAuthType();
-            final CifsConnectionType conType=CifsConnectionType.WINRM;
             final boolean isHttps = WINRM_PROTOCOL_HTTPS.equalsIgnoreCase(getProtocol());
-            final boolean isKerberos = AUTH_TYPE_KERBEROS.equals(authType);
-            if (isKerberos) {
-                options.set(CifsConnectionBuilder.WINRM_KERBEROS_DEBUG, isDebugKerberosAuth());
+
+            final boolean isKerberos = getUsername().indexOf("@") > 0 || AUTH_TYPE_KERBEROS.equals(authType);
+            String username = getUsername();
+            if(isKerberos && username.indexOf("@")<0) {
+                username = username + "@" + getHostname();
             }
 
-            options.set(USERNAME, getUsername());
+            if (isKerberos) {
+                options.set(CifsConnectionBuilder.WINRM_KERBEROS_DEBUG, isDebugKerberosAuth());
+                options.set(CifsConnectionBuilder.WINRM_KERBEROS_ADD_PORT_TO_SPN, isWinrmSpnAddPort());
+                options.set(CifsConnectionBuilder.WINRM_KERBEROS_USE_HTTP_SPN, isWinrmSpnUseHttp());
+            }
             final String password = getPassword();
             final boolean valid = null != password && !"".equals(password);
             if (!valid) {
                 throw new ConfigurationException("Password was not set");
             }
-            options.set(PASSWORD, password);
 
-            if (isHttps && isKerberos) {
+            if (isHttps) {
                 final String certTrustStrategy = getCertTrustStrategy();
                 WinrmHttpsCertificateTrustStrategy strategy = WinrmHttpsCertificateTrustStrategy.valueOf(certTrustStrategy);
                 if (null != certTrustStrategy) {
@@ -405,12 +454,22 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
                 }
             }
 
+            options.set(ADDRESS, getHostname());
+            options.set(USERNAME, username);
+            options.set(PASSWORD, password);
             options.set(OPERATING_SYSTEM, WINDOWS);
-            options.set(CONNECTION_TYPE, conType);
             options.set(CONNECTION_TIMEOUT_MILLIS, getConnectionTimeout());
             options.set(PORT, getPort(isHttps ? DEFAULT_HTTPS_PORT : DEFAULT_HTTP_PORT));
-            options.set(CifsConnectionBuilder.WINRM_ENABLE_HTTPS, isHttps);
             options.set(CifsConnectionBuilder.CONNECTION_TYPE, CifsConnectionType.WINRM);
+            options.set(CifsConnectionBuilder.WINRM_ENABLE_HTTPS, isHttps);
+            options.set(CifsConnectionBuilder.WINRM_KERBEROS_ADD_PORT_TO_SPN, isWinrmSpnAddPort());
+            options.set(CifsConnectionBuilder.WINRM_KERBEROS_USE_HTTP_SPN, isWinrmSpnUseHttp());
+            if(null!=getWinrmLocale()){
+                options.set(CifsConnectionBuilder.WINRM_LOCALE, getWinrmLocale());
+            }
+            if(null!=getWinrmTimeout()){
+                options.set(CifsConnectionBuilder.WINRM_TIMEMOUT, getWinrmTimeout());
+            }
             return options;
         }
     }
