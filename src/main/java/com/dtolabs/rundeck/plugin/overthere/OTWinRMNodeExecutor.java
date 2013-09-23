@@ -22,7 +22,7 @@ import com.xebialabs.overthere.cifs.CifsConnectionBuilder;
 import com.xebialabs.overthere.cifs.CifsConnectionType;
 import com.xebialabs.overthere.cifs.WinrmHttpsCertificateTrustStrategy;
 import com.xebialabs.overthere.cifs.WinrmHttpsHostnameVerificationStrategy;
-import com.xebialabs.overthere.cifs.winrm.exception.WinRMRuntimeIOException;
+import com.xebialabs.overthere.cifs.winrm.WinRmRuntimeIOException;
 import com.xebialabs.overthere.util.ConsoleOverthereExecutionOutputHandler;
 import com.xebialabs.overthere.util.DefaultAddressPortMapper;
 
@@ -183,7 +183,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             } finally {
                 connection.close();
             }
-        } catch (WinRMRuntimeIOException re) {
+        } catch (WinRmRuntimeIOException re) {
             if (context.getLoglevel() > 2) {
                 re.printStackTrace(System.err);
                 message = re.getMessage();

@@ -30,7 +30,7 @@ repositories {
     mavenCentral()
 }
 dependencies {
-    pluginLibs(group: 'com.xebialabs.overthere', name: 'overthere', version: '2.2.0'){
+    pluginLibs(group: 'com.xebialabs.overthere', name: 'overthere', version: '2.2.2'){
 //        exclude( module: 'commons-codec')
         exclude( module: 'bcprov-jdk16')
         exclude( module: 'jzlib')
