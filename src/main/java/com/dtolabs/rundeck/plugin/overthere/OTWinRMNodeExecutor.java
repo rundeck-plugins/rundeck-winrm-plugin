@@ -179,7 +179,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             try {
                 result = connection.execute(ConsoleOverthereExecutionOutputHandler.sysoutHandler(),
                         ConsoleOverthereExecutionOutputHandler.syserrHandler(),
-                        CmdLine.build(command));
+                        buildCmdLineRaw(command));
             } finally {
                 connection.close();
             }
@@ -229,6 +229,21 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         }
     }
 
+
+    /**
+     * Build a CmdLine without escaping any part, using Raw arguments
+     *
+     * @param args the regular arguments which will be added without escaping
+     *
+     * @return the created command line
+     */
+    public static CmdLine buildCmdLineRaw(String... args) {
+        CmdLine cmdLine = new CmdLine();
+        for (String s : args) {
+            cmdLine.addRaw(s);
+        }
+        return cmdLine;
+    }
 
     static String evaluateSecureOption(final String optionName, final ExecutionContext context) {
         if (null == optionName) {
