@@ -16,6 +16,7 @@ import com.dtolabs.rundeck.core.plugins.Plugin;
 import com.dtolabs.rundeck.core.plugins.configuration.Describable;
 import com.dtolabs.rundeck.core.plugins.configuration.Description;
 import com.dtolabs.rundeck.core.plugins.configuration.PropertyUtil;
+import com.dtolabs.rundeck.plugins.descriptions.PluginDescription;
 import com.dtolabs.rundeck.plugins.util.DescriptionBuilder;
 import com.xebialabs.overthere.*;
 import com.xebialabs.overthere.cifs.CifsConnectionBuilder;
@@ -31,13 +32,22 @@ import java.util.*;
 import static com.xebialabs.overthere.ConnectionOptions.*;
 import static com.xebialabs.overthere.OperatingSystemFamily.WINDOWS;
 
+/**
+ * Executes a command via WinRM. Subclass to extend, there are places to alter the generation of user@realm, and to
+ * alter the password resolution mechanism.
+ * See {@link #getKerberosUsername(com.dtolabs.rundeck.plugin.overthere.OTWinRMNodeExecutor.ConnectionOptionsBuilder)}
+ * and
+ * {@link #getClearAuthPassword(com.dtolabs.rundeck.plugin.overthere.OTWinRMNodeExecutor.ConnectionOptionsBuilder)}.
+ *
+ * The connection options can be altered as well by overriding {@link #willUseConnectionOptions(com.xebialabs.overthere.ConnectionOptions)}.
+ */
 @Plugin(name = OTWinRMNodeExecutor.SERVICE_PROVIDER_TYPE, service = "NodeExecutor")
 public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String SERVICE_PROVIDER_TYPE = "overthere-winrm";
 
     public static final int DEFAULT_WINRM_CONNECTION_TIMEOUT = 15000;
     public static final String WINRM_PASSWORD_OPTION = "winrm-password-option";
-    public static final String DEFAULT_WINRM_PASSWORD_OPTION = "option.winrmPassword";
+    public static final String DEFAULT_WINRM_PASSWORD_OPTION = "winrmPassword";
     public static final int DEFAULT_HTTPS_PORT = 5986;
     public static final int DEFAULT_HTTP_PORT = 5985;
     public static final String WINRM_CONNECTION_TIMEOUT_PROPERTY = "winrm-connection-timeout";
@@ -57,31 +67,33 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String WINRM_TIMEOUT = "winrm-timeout";
 
     public static final String HOSTNAME_TRUST_BROWSER_COMPATIBLE = "browser-compatible";
-    public static final String HOSTNAME_TRUST_STRICT= "strict";
-    public static final String HOSTNAME_TRUST_ALL= "all";
+    public static final String HOSTNAME_TRUST_STRICT = "strict";
+    public static final String HOSTNAME_TRUST_ALL = "all";
 
 
     public static final String CERT_TRUST_DEFAULT = "default";
-    public static final String CERT_TRUST_ALL= "all";
-    public static final String CERT_TRUST_SELF_SIGNED= "self-signed";
+    public static final String CERT_TRUST_ALL = "all";
+    public static final String CERT_TRUST_SELF_SIGNED = "self-signed";
 
     public static final String DEFAULT_AUTH_TYPE = AUTH_TYPE_KERBEROS;
     public static final String DEBUG_KERBEROS_AUTH = "winrm-kerberos-debug";
     public static final Boolean DEFAULT_DEBUG_KERBEROS_AUTH = false;
     public static final String DEFAULT_WINRM_PROTOCOL = WINRM_PROTOCOL_HTTPS;
 
-    public static final WinrmHttpsCertificateTrustStrategy DEFAULT_CERT_TRUST= WinrmHttpsCertificateTrustStrategy.STRICT;
-    public static final WinrmHttpsHostnameVerificationStrategy DEFAULT_HOSTNAME_VERIFY= WinrmHttpsHostnameVerificationStrategy.BROWSER_COMPATIBLE;
+    public static final WinrmHttpsCertificateTrustStrategy DEFAULT_CERT_TRUST = WinrmHttpsCertificateTrustStrategy
+            .STRICT;
+    public static final WinrmHttpsHostnameVerificationStrategy DEFAULT_HOSTNAME_VERIFY =
+            WinrmHttpsHostnameVerificationStrategy.BROWSER_COMPATIBLE;
 
     //Config properties for GUI
     public static final String CONFIG_AUTHENTICATION = "authentication";
-    public static final String CONFIG_PROTOCOL= "protocol";
-    public static final String CONFIG_CERT_TRUST= "certTrust";
-    public static final String CONFIG_HOSTNAME_VERIFY= "hostnameVerify";
-    public static final String CONFIG_SPN_ADD_PORT= "spnAddPort";
-    public static final String CONFIG_SPN_USE_HTTP= "spnUseHttp";
-    public static final String CONFIG_LOCALE= "locale";
-    public static final String CONFIG_WINRM_TIMEOUT= "winrmTimeout";
+    public static final String CONFIG_PROTOCOL = "protocol";
+    public static final String CONFIG_CERT_TRUST = "certTrust";
+    public static final String CONFIG_HOSTNAME_VERIFY = "hostnameVerify";
+    public static final String CONFIG_SPN_ADD_PORT = "spnAddPort";
+    public static final String CONFIG_SPN_USE_HTTP = "spnUseHttp";
+    public static final String CONFIG_LOCALE = "locale";
+    public static final String CONFIG_WINRM_TIMEOUT = "winrmTimeout";
     private static final String CONFIG_TIMEOUT = "timeout";
 
     private Framework framework;
@@ -155,45 +167,45 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     }
 
     public NodeExecutorResult executeCommand(final ExecutionContext context, final String[] command,
-                                             final INodeEntry node) {
-        if (null == node.getHostname() || null == node.extractHostname()) {
-            return NodeExecutorResultImpl.createFailure(StepFailureReason.ConfigurationFailure,
-                    "Hostname must be set to connect to remote node '" + node.getNodename() + "'", node);
-        }
-        if (null == node.extractUserName()) {
-            return NodeExecutorResultImpl.createFailure(StepFailureReason.ConfigurationFailure,
-                    "Username must be set to connect to remote node '" + node.getNodename() + "'", node);
+            final INodeEntry node) {
+
+        ConnectionOptions options = null;
+
+        try {
+            options = willUseConnectionOptions(new ConnectionOptionsBuilder(context, node, framework).build());
+        } catch (ConfigurationException e) {
+            return NodeExecutorResultImpl.createFailure(StepFailureReason.ConfigurationFailure, e.getMessage(), node);
         }
 
-        final ConnectionOptionsBuilder connectionOptionsBuilder = new ConnectionOptionsBuilder(context, node,
-            framework);
+        if (null != context.getExecutionListener()) {
+            context.getExecutionListener().log(3, "[" + SERVICE_PROVIDER_TYPE + "] " + options);
+        }
 
         int result = -1;
-        String message = null;
         try {
-
-            final OverthereConnection connection = new CifsConnectionBuilder(CifsConnectionBuilder.CIFS_PROTOCOL,
-                connectionOptionsBuilder.build(),
-                new DefaultAddressPortMapper()).connect();
+            final OverthereConnection connection = new CifsConnectionBuilder(CifsConnectionBuilder.CIFS_PROTOCOL, options,
+                    new DefaultAddressPortMapper()).connect();
 
             try {
                 result = connection.execute(ConsoleOverthereExecutionOutputHandler.sysoutHandler(),
                         ConsoleOverthereExecutionOutputHandler.syserrHandler(),
-                        buildCmdLineRaw(command));
+                        buildCommandLine(command));
             } finally {
                 connection.close();
             }
         } catch (WinRmRuntimeIOException re) {
+            String message = null;
             if (context.getLoglevel() > 2) {
                 re.printStackTrace(System.err);
                 message = re.getMessage();
             } else {
-                message = "WinRM Error: " + re.getCause();
+                message = "WinRM Error: " + re.getMessage();
             }
             context.getExecutionListener().log(0,
                     "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
             return NodeExecutorResultImpl.createFailure(Reason.WinRMProtocolError, message, re, node, -1);
         } catch (RuntimeIOException re) {
+            String message = null;
             if (context.getLoglevel() > 2) {
                 re.printStackTrace(System.err);
                 message = re.getMessage();
@@ -210,24 +222,38 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         final boolean status = resultCode == 0;
 
         if (!status) {
-            if(null==message) {
-                context.getExecutionListener().log(0,
+            context.getExecutionListener().log(0,
                     "[" + SERVICE_PROVIDER_TYPE + "] failed: exit code: " + resultCode);
-            }else{
-                context.getExecutionListener().log(0,
-                    "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
-            }
         }
-        final String resultmsg = message;
 
         if (status) {
             return NodeExecutorResultImpl.createSuccess(node);
         } else {
             return NodeExecutorResultImpl.createFailure(NodeStepFailureReason.NonZeroResultCode,
-                    "[" + SERVICE_PROVIDER_TYPE + "] result code: " + resultCode +
-                            (null != resultmsg ? ": " + resultmsg : ""), node, resultCode);
+                    "[" + SERVICE_PROVIDER_TYPE + "] result code: " + resultCode, node, resultCode);
         }
     }
+
+    /**
+     * Create the {@link CmdLine} to run from the input string array, the default behavior is to use {@link #buildCmdLineRaw(String...)}
+     * @param command
+     * @return
+     */
+    protected CmdLine buildCommandLine(String[] command) {
+        return buildCmdLineRaw(command);
+    }
+
+    /**
+     * Called before connecting with the ConnectionnOptions that will be used, which can be altered here by a subclass.
+     *
+     * @param options configured options
+     *
+     * @return the ConnectionOptions to use
+     */
+    protected ConnectionOptions willUseConnectionOptions(final ConnectionOptions options) throws ConfigurationException {
+        return options;
+    }
+
 
 
     /**
@@ -253,11 +279,18 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             return null;
         }
         final String[] opts = optionName.split("\\.", 2);
+        String dataset = null;
+        String optname = null;
         if (null != opts && 2 == opts.length) {
-            final Map<String, String> option = context.getPrivateDataContext().get(opts[0]);
-            if (null != option) {
-                return option.get(opts[1]);
-            }
+            dataset = opts[0];
+            optname = opts[1];
+        } else if (null != opts && 1 == opts.length) {
+            dataset = "option";
+            optname = opts[0];
+        }
+        final Map<String, String> option = context.getPrivateDataContext().get(dataset);
+        if (null != option) {
+            return option.get(optname);
         }
         return null;
     }
@@ -268,7 +301,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
      * value
      */
     private static String resolveProperty(final String nodeAttribute, final String defaultValue, final INodeEntry node,
-                                          final FrameworkProject frameworkProject, final Framework framework) {
+            final FrameworkProject frameworkProject, final Framework framework) {
 
         if (null != node.getAttributes().get(nodeAttribute)) {
             return node.getAttributes().get(nodeAttribute);
@@ -283,7 +316,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     }
 
     private static int resolveIntProperty(final String attribute, final int defaultValue, final INodeEntry iNodeEntry,
-                                          final FrameworkProject frameworkProject, final Framework framework) {
+            final FrameworkProject frameworkProject, final Framework framework) throws ConfigurationException {
         int value = defaultValue;
         final String string = resolveProperty(attribute, null, iNodeEntry, frameworkProject, framework);
         if (null != string) {
@@ -297,8 +330,8 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     }
 
     private static long resolveLongProperty(final String attribute, final long defaultValue,
-                                            final INodeEntry iNodeEntry,
-                                            final FrameworkProject frameworkProject, final Framework framework) {
+            final INodeEntry iNodeEntry,
+            final FrameworkProject frameworkProject, final Framework framework) throws ConfigurationException {
         long value = defaultValue;
         final String string = resolveProperty(attribute, null, iNodeEntry, frameworkProject, framework);
         if (null != string) {
@@ -312,8 +345,8 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     }
 
     private static boolean resolveBooleanProperty(final String attribute, final boolean defaultValue,
-                                                  final INodeEntry iNodeEntry,
-                                                  final FrameworkProject frameworkProject, final Framework framework) {
+            final INodeEntry iNodeEntry,
+            final FrameworkProject frameworkProject, final Framework framework) {
         boolean value = defaultValue;
         final String string = resolveProperty(attribute, null, iNodeEntry, frameworkProject, framework);
         if (null != string) {
@@ -322,7 +355,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         return value;
     }
 
-    static class ConfigurationException extends RuntimeException {
+    static class ConfigurationException extends Exception {
         ConfigurationException(String s) {
             super(s);
         }
@@ -332,7 +365,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         }
     }
 
-    static class ConnectionOptionsBuilder {
+    protected class ConnectionOptionsBuilder {
 
         private ExecutionContext context;
         private INodeEntry node;
@@ -348,109 +381,106 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         }
 
         public String getPassword() {
-            final String passwordOption = resolveProperty(WINRM_PASSWORD_OPTION, DEFAULT_WINRM_PASSWORD_OPTION, node,
-                frameworkProject, framework);
-            return evaluateSecureOption(passwordOption, context);
+            final String passwordOption = resolveProperty(WINRM_PASSWORD_OPTION, DEFAULT_WINRM_PASSWORD_OPTION, getNode(),
+
+                    getFrameworkProject(), getFramework());
+            return evaluateSecureOption(passwordOption, getContext());
         }
 
-        public int getConnectionTimeout() {
-            return resolveIntProperty(WINRM_CONNECTION_TIMEOUT_PROPERTY, DEFAULT_WINRM_CONNECTION_TIMEOUT, node, frameworkProject,
-                    framework);
-        }
-        public static String nonBlank(String input){
-            if (null == input || "".equals(input.trim())) {
-                return null;
-            } else {
-                return input.trim();
-            }
+        public int getConnectionTimeout() throws ConfigurationException {
+            return resolveIntProperty(WINRM_CONNECTION_TIMEOUT_PROPERTY, DEFAULT_WINRM_CONNECTION_TIMEOUT, getNode(),
+                    getFrameworkProject(),
+                    getFramework());
         }
 
         public String getUsername() {
             final String user;
-            if (null != nonBlank(node.getUsername()) || node.containsUserName()) {
-                user = nonBlank(node.getUsername());
+            if (null != nonBlank(getNode().getUsername()) || getNode().containsUserName()) {
+                user = nonBlank(getNode().getUsername());
             } else {
-                user = resolveProperty(WINRM_USER, null, node, frameworkProject, framework);
+                user = resolveProperty(WINRM_USER, null, getNode(), getFrameworkProject(), getFramework());
             }
 
             if (null != user && user.contains("${")) {
-                return DataContextUtils.replaceDataReferences(user, context.getDataContext());
+                return DataContextUtils.replaceDataReferences(user, getContext().getDataContext());
             }
             return user;
         }
 
         public String getHostname() {
-            return node.extractHostname();
+            return getNode().extractHostname();
         }
 
         public String getAuthType() {
-            return resolveProperty(WINRM_AUTH_TYPE, DEFAULT_AUTH_TYPE, node, frameworkProject, framework);
+            return resolveProperty(WINRM_AUTH_TYPE, DEFAULT_AUTH_TYPE, getNode(), getFrameworkProject(), getFramework());
         }
 
         public String getCertTrustStrategy() {
-            return resolveProperty(WINRM_CERT_TRUST, DEFAULT_CERT_TRUST.toString(), node, frameworkProject, framework);
+            return resolveProperty(WINRM_CERT_TRUST, DEFAULT_CERT_TRUST.toString(), getNode(), getFrameworkProject(), getFramework());
         }
 
         public String getHostnameTrustStrategy() {
-            return resolveProperty(WINRM_HOSTNAME_TRUST, DEFAULT_HOSTNAME_VERIFY.toString(), node, frameworkProject,
-                    framework);
+            return resolveProperty(WINRM_HOSTNAME_TRUST, DEFAULT_HOSTNAME_VERIFY.toString(), getNode(), getFrameworkProject(),
+                    getFramework());
         }
 
         public String getProtocol() {
-            return resolveProperty(WINRM_PROTOCOL, DEFAULT_WINRM_PROTOCOL, node, frameworkProject, framework);
+            return resolveProperty(WINRM_PROTOCOL, DEFAULT_WINRM_PROTOCOL, getNode(), getFrameworkProject(), getFramework());
         }
 
         public Boolean isDebugKerberosAuth() {
-            return resolveBooleanProperty(DEBUG_KERBEROS_AUTH, DEFAULT_DEBUG_KERBEROS_AUTH, node, frameworkProject,
-                framework);
+            return resolveBooleanProperty(DEBUG_KERBEROS_AUTH, DEFAULT_DEBUG_KERBEROS_AUTH, getNode(), getFrameworkProject(),
+                    getFramework());
         }
+
         public Boolean isWinrmSpnAddPort() {
-            return resolveBooleanProperty(WINRM_SPN_ADD_PORT, false, node, frameworkProject,
-                framework);
+            return resolveBooleanProperty(WINRM_SPN_ADD_PORT, false, getNode(), getFrameworkProject(),
+                    getFramework());
         }
+
         public Boolean isWinrmSpnUseHttp() {
-            return resolveBooleanProperty(WINRM_SPN_USE_HTTP, false, node, frameworkProject,
-                framework);
+            return resolveBooleanProperty(WINRM_SPN_USE_HTTP, false, getNode(), getFrameworkProject(),
+                    getFramework());
         }
 
         public String getWinrmLocale() {
-            return resolveProperty(WINRM_LOCALE, null, node, frameworkProject, framework);
+            return resolveProperty(WINRM_LOCALE, null, getNode(), getFrameworkProject(), getFramework());
         }
 
         public String getWinrmTimeout() {
-            return resolveProperty(WINRM_TIMEOUT, null, node, frameworkProject, framework);
+            return resolveProperty(WINRM_TIMEOUT, null, getNode(), getFrameworkProject(), getFramework());
         }
 
-        private int getPort(final int defaultPort) {
+        private int getPort(final int defaultPort) throws ConfigurationException {
             // If the node entry contains a non-default port, configure the connection to use it.
-            if (node.containsPort()) {
+            if (getNode().containsPort()) {
                 try {
-                    return Integer.parseInt(node.extractPort());
+                    return Integer.parseInt(getNode().extractPort());
                 } catch (NumberFormatException e) {
-                    throw new ConfigurationException("Port number is not valid: " + node.extractPort(), e);
+                    throw new ConfigurationException("Port number is not valid: " + getNode().extractPort(), e);
                 }
             } else {
-                return resolveIntProperty(WINRM_PORT, defaultPort, node, frameworkProject, framework);
+                return resolveIntProperty(WINRM_PORT, defaultPort, getNode(), getFrameworkProject(), getFramework());
             }
         }
 
-        public ConnectionOptions build() {
+        public ConnectionOptions build() throws ConfigurationException{
             final ConnectionOptions options = new ConnectionOptions();
             final String authType = getAuthType();
             final boolean isHttps = WINRM_PROTOCOL_HTTPS.equalsIgnoreCase(getProtocol());
 
             final boolean isKerberos = getUsername().indexOf("@") > 0 || AUTH_TYPE_KERBEROS.equals(authType);
-            String username = getUsername();
-            if(isKerberos && username.indexOf("@")<0) {
-                username = username + "@" + getHostname();
-            }
 
+            String username;
             if (isKerberos) {
+                username = getKerberosUsername(this);
                 options.set(CifsConnectionBuilder.WINRM_KERBEROS_DEBUG, isDebugKerberosAuth());
                 options.set(CifsConnectionBuilder.WINRM_KERBEROS_ADD_PORT_TO_SPN, isWinrmSpnAddPort());
                 options.set(CifsConnectionBuilder.WINRM_KERBEROS_USE_HTTP_SPN, isWinrmSpnUseHttp());
+            } else {
+                username = getUsername();
             }
-            final String password = getPassword();
+            final String password = getClearAuthPassword(this);
             final boolean valid = null != password && !"".equals(password);
             if (!valid) {
                 throw new ConfigurationException("Password was not set");
@@ -458,12 +488,14 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
 
             if (isHttps) {
                 final String certTrustStrategy = getCertTrustStrategy();
-                WinrmHttpsCertificateTrustStrategy strategy = WinrmHttpsCertificateTrustStrategy.valueOf(certTrustStrategy);
+                WinrmHttpsCertificateTrustStrategy strategy = WinrmHttpsCertificateTrustStrategy.valueOf
+                        (certTrustStrategy);
                 if (null != certTrustStrategy) {
                     options.set(CifsConnectionBuilder.WINRM_HTTPS_CERTIFICATE_TRUST_STRATEGY, strategy);
                 }
                 final String hostnameTrustStrategy = getHostnameTrustStrategy();
-                WinrmHttpsHostnameVerificationStrategy hostStrat = WinrmHttpsHostnameVerificationStrategy.valueOf(hostnameTrustStrategy);
+                WinrmHttpsHostnameVerificationStrategy hostStrat = WinrmHttpsHostnameVerificationStrategy.valueOf
+                        (hostnameTrustStrategy);
                 if (null != hostnameTrustStrategy) {
                     options.set(CifsConnectionBuilder.WINRM_HTTPS_HOSTNAME_VERIFICATION_STRATEGY, hostStrat);
                 }
@@ -479,15 +511,67 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             options.set(CifsConnectionBuilder.WINRM_ENABLE_HTTPS, isHttps);
             options.set(CifsConnectionBuilder.WINRM_KERBEROS_ADD_PORT_TO_SPN, isWinrmSpnAddPort());
             options.set(CifsConnectionBuilder.WINRM_KERBEROS_USE_HTTP_SPN, isWinrmSpnUseHttp());
-            if(null!=getWinrmLocale()){
+            if (null != getWinrmLocale()) {
                 options.set(CifsConnectionBuilder.WINRM_LOCALE, getWinrmLocale());
             }
-            if(null!=getWinrmTimeout()){
+            if (null != getWinrmTimeout()) {
                 options.set(CifsConnectionBuilder.WINRM_TIMEMOUT, getWinrmTimeout());
             }
             return options;
         }
+
+        public ExecutionContext getContext() {
+            return context;
+        }
+
+        public INodeEntry getNode() {
+            return node;
+        }
+
+        public Framework getFramework() {
+            return framework;
+        }
+
+        public FrameworkProject getFrameworkProject() {
+            return frameworkProject;
+        }
     }
 
+    static String nonBlank(String input) {
+        if (null == input || "".equals(input.trim())) {
+            return null;
+        } else {
+            return input.trim();
+        }
+    }
+
+    /**
+     * Return the cleartext user password
+     *
+     * @return
+     */
+    protected String getClearAuthPassword(final ConnectionOptionsBuilder options) {
+        return options.getPassword();
+    }
+
+    /**
+     * Return the full username@domain to use for kerberos authentication. The default implementation will append
+     * "@HOSTNAME" if no "@DOMAIN" is present, otherwise it will convert "@domain" to "@DOMAIN" and return the value.
+     *
+     * @param options options builder
+     *
+     * @return
+     */
+    protected String getKerberosUsername(final ConnectionOptionsBuilder options) {
+        String username = options.getUsername();
+        String hostname = options.getHostname();
+        if (username.indexOf("@") < 0) {
+            username = username + "@" + hostname.toUpperCase();
+        } else if (username.indexOf("@") > 0) {
+            String domain = username.substring(username.indexOf("@"));
+            username = username.substring(0, username.indexOf("@")) + domain.toUpperCase();
+        }
+        return username;
+    }
 }
 
