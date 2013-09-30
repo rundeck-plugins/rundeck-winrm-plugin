@@ -6,10 +6,12 @@ This is a [Rundeck Node Execution plugin][1] that uses WinRM to connect to Windo
 [1]: http://rundeck.org/docs/manual/plugins.html#node-execution-plugins
 [2]: https://github.com/xebialabs/overthere/
 
+Compatible with Rundeck 1.5.x+
+
 Install
 ====
 
-Copy the `rundeck-winrm-plugin-1.0-beta.jar` to the `libext/` directory for Rundeck.
+Copy the `rundeck-winrm-plugin-1.1.jar` to the `libext/` directory for Rundeck.
 
 Configure The Plugin
 ====
@@ -22,20 +24,26 @@ Or set as the default NodeExecutor for your project/framework properties file, w
 
 These Node attributes are used to connect to the remote host:
 
-* `username` - Remote username
-* `hostname` - Remote host. Can include "host:port" to specify port number other than the default 5986.
-* `winrm-password-option` - Specifies a [Secure Authentication Option][1] from a Job to use as the authentication password. (format: "option.NAME"). 
-	* default-value: "option.winrmPassword", so simply define a Secure Authentication Option on your Job with the name "winrmPassword".
+* `username` - Remote username. If using Kerberos, should be in the form "user@DOMAIN". If not, @hostname will be appended to produce the domain.
+* `hostname` - Remote host. Can include "host:port" to specify port number other than the default 5985/5986 (http/https).
+
+You must create a Rundeck Job with a [Secure Authentication Option][1], to pass in the password to use.  The default name
+of this option should be "winrmPassword", but you can change the name that is expected, if necessary.
 
 [1]: http://rundeck.org/docs/manual/job-options.html#secure-options
 
 These additional configuration attributes can be set on the Node, or in the project.properties or framework.properties. To add them to project.properties, prefix them with "project." and for framework.properties prefix them with "framework.":
 
-* `winrm-timeout` - timeout in milliseconds for connection. (default 15000)
-* `winrm-port` - port number to use, if not set in the `hostname` of the Node. (Default: 5986)
+* `winrm-connection-timeout` - timeout in milliseconds for connection. (default 15000)
+* `winrm-timeout` - WinRM protocol Timeout, in XML Schema Duration format. (Default: `PT60.000S`) see: <http://www.w3.org/TR/xmlschema-2/#isoformats>
+* `winrm-port` - port number to use, if not set in the `hostname` of the Node. (Default: 5985/5986 for http/https)
 * `winrm-user` - Username, if not set in the `username` of the Node
 * `winrm-protocol` - Determine HTTP(S) protocol to use, either "http" or "https". Default: "https"
-* `winrm-auth-type` - Type of authentication to use, "basic" or "kerberos", default: "kerberos"
+* `winrm-auth-type` - Type of authentication to use, "basic" or "kerberos", default: "kerberos".  If the username contains '@domain', then kerberos will be selected.
+* `winrm-locale` - Locale to use, default: "en-us".
+* `winrm-password-option` - Specifies a [Secure Authentication Option][1] from a Job to use as the authentication password. (format: "NAME" ).
+	* default-value: "winrmPassword", so simply define a Secure Authentication Option on your Job with the name "winrmPassword".
+
 
 Using Kerberos Authentication
 ====
@@ -47,6 +55,8 @@ Configure these node properties, or set "framework.X" or "project.X" in your fra
 * `winrm-cert-trust` - (HTTPS only) certificate trust strategy, "all" (trust all certificates), "self-signed" (trust self-signed in addition to verified), or "default" (trust only verified certificates). Default: "default".
 * `winrm-hostname-trust` - (HTTPS only) hostname trust strategy, "all", "strict" or "browser-compatible". Default: "browser-compatible".
 * `winrm-kerberos-debug` - true/false, if true, enable debug output for Kerberos authentication. Default: false.
+* `winrm-spn-add-port` - true/false, if true, add the port to the SPN used for authentication. Default: false.
+* `winrm-spn-use-http` - true/false, if true, use 'HTTP' instead of 'WSMAN' as the protocol for the SPN used for authentication. Default: false.
 
 Configure Kerberos
 ----
@@ -80,16 +90,17 @@ If the system clock differs too much between the nodes you will see this error:
 
     failed: WinRM Error: javax.security.auth.login.LoginException: Clock skew too great (37)
 
-If you receive Kerberos authentication error `Server not found in Kerberos database` then you need to define a "Service Principal Name" for the auth service on the Windows node:
+If you receive Kerberos authentication error `Server not found in Kerberos database` then you need to define a
+"Service Principal Name" for the auth service on the Windows node:
 
-* Run this command, include the port number used (e.g. 5986 for HTTPS, 5985 for HTTP) , but make sure the service name starts with "HTTP/":
+* Run this command:
 
-        setspn -a HTTP/hostname.domain.com:5985 hostname
-    or
-        setspn -a HTTP/hostname.domain.com:5986 hostname
+        setspn -a WSMAN/hostname.domain.com hostname
 
+If your SPN uses a protocol of 'HTTP', or includes the port in the SPN (such as `HTTP/hostname.domain.com:5985`), see
+the `winrm-spn-add-port` and `winrm-spn-use-http` configuration options above.
 
-Configure a Windows Server for WinRM 
+Configure a Windows Server for WinRM
 ====
 
 This is a seperate topic, but you can follow the guide described in the OverThere project for [WINRM_HTTPS Host Setup][1].
@@ -101,19 +112,17 @@ Here are also some notes on the wiki: [wikilink]
 Caveats
 ====
 
-Note: This plugin will work against Rundeck 1.4.3 or later.  A conflict with the "commons-codec" jar dependency prevents it from working in earlier versions out of the box.  If you want you can resolve the issue manually by removing all "commons-codec-1.x.jar" files in your Rundeck server install, and replacing them with "commons-codec-1.5.jar".
+Note: This plugin will work against Rundeck 1.5.x or later.
 
 Build
 =====
 
 Build with gradle or maven 2.
 
-Prerequisites: the `rundeck-core-1.4.x.jar` file.
-
-Gradle build, result is `build/libs/rundeck-winrm-plugin-1.0-beta.jar`.
+Gradle build, result is `build/libs/rundeck-winrm-plugin-1.1.jar`.
 
 	gradle clean build
 
-Maven build, result is `target/rundeck-winrm-plugin-1.0-beta.jar`
+Maven build, result is `target/rundeck-winrm-plugin-1.1.jar`
     
     mvn clean package
