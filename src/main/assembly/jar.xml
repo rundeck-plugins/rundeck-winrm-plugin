@@ -43,8 +43,18 @@
             <unpack>false</unpack>
             <useTransitiveDependencies>true</useTransitiveDependencies>
             <excludes>
-                <!-- exclude commons-codec, can conflict at runtime with rundeck server -->
-                <exclude>commons-codec:commons-codec</exclude>
+                <!--<exclude>commons-codec:commons-codec</exclude>-->
+                <exclude>org.bouncycastle:bcprov-jdk16</exclude>
+                <exclude>com.jcraft:jzlib</exclude>
+                <exclude>net.schmizz:sshj</exclude>
+                <exclude>commons-net:commons-net</exclude>
+                <exclude>javax.servlet:servlet-api</exclude>
+                <exclude>xom:xom</exclude>
+                <exclude>com.ibm.icu:icu4j</exclude>
+                <exclude>jaxen:jaxen</exclude>
+                <exclude>jdom:jdom</exclude>
+                <exclude>dom4j:dom4j</exclude>
+                <exclude>org.slf4j:jcl-over-slf4j</exclude>
             </excludes>
             <scope>runtime</scope>
         </dependencySet>
