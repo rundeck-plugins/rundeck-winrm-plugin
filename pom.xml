@@ -2,11 +2,16 @@
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>com.dtolabs.rundeck</groupId>
+  <groupId>org.rundeck-plugins</groupId>
   <artifactId>rundeck-winrm-plugin</artifactId>
-  <version>1.1</version>
+  <version>1.1-SNAPSHOT</version>
   <name>RunDeck WinRM NodeExecutor Plugin</name>
   <url>http://rundeck.org</url>
+  <parent>
+    <artifactId>rundeck-plugins-parent</artifactId>
+    <groupId>org.rundeck-plugins</groupId>
+    <version>2-SNAPSHOT</version>
+  </parent>
   <inceptionYear>2011</inceptionYear>
   <licenses>
     <license>
