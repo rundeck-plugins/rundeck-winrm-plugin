@@ -1,19 +1,19 @@
-pluginClassNames='com.dtolabs.rundeck.plugin.overthere.OTWinRMNodeExecutor'
+ext.pluginClassNames='com.dtolabs.rundeck.plugin.overthere.OTWinRMNodeExecutor'
 
 defaultTasks 'clean','build'
-version = '1.0-beta-2'
-rundeckPluginVersion= '1.0'
+version = '1.1'
+ext.rundeckPluginVersion= '1.1'
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'project-report'
 sourceCompatibility = 1.5
 archivesBaseName = "rundeck-winrm-plugin"
-rundeckVersion='1.4.5'
+ext.rundeckVersion='1.5.3'
 
 
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '1.0-milestone-8a'
+    gradleVersion = '1.7'
 }
 
 configurations{
@@ -26,17 +26,30 @@ configurations{
     }
 }
 repositories {
+    mavenLocal()
     mavenCentral()
-
-    flatDir name: 'localRepository', dirs: "${rootProject.projectDir}/../rundeck/core/build/libs"
-
 }
 dependencies {
-    pluginLibs(group: 'com.xebialabs.overthere', name: 'overthere', version: '2.0.0-beta-2'){
-        exclude( module: 'commons-codec')
+    pluginLibs(group: 'com.xebialabs.overthere', name: 'overthere', version: '2.2.2'){
+        exclude( module: 'bcprov-jdk16')
+        exclude( module: 'jzlib')
+        exclude( module: 'sshj')
+        exclude( module: 'commons-net')
+        exclude( module: 'servlet-api')
+        exclude( module: 'xom')
+        exclude( module: 'jdom')
+        exclude( module: 'dom4j')
+        exclude( module: 'jaxen')
+        exclude( module: 'icu4j')
+        exclude( module: 'jcl-over-slf4j')
     }
+//    pluginLibs(group: 'org.slf4j', name: 'slf4j-simple', version: '1.6.3')
+    pluginLibs(group: 'org.slf4j', name: 'slf4j-nop', version: '1.6.3')
+    //nb: commons-codec 1.6 is a transitive of overthere 2.2.2 via httpclient 4.2.1. but maven only uses explicit deps, and overthere 2.2.2 declares 1.5
+    //TODO: remove this explicit dep after updating overthere to 2.2.3+
+    pluginLibs(group: 'commons-codec', name: 'commons-codec', version: '1.6')
 
-    compile(group: 'com.dtolabs.rundeck', name: 'rundeck-core', version: rundeckVersion)
+    compile(group: 'org.rundeck', name: 'rundeck-core', version: rundeckVersion)
 }
 
 // task to copy plugin libs to output/lib dir
@@ -48,11 +61,22 @@ task copyToLib(type: Copy) {
 jar {
     from "$buildDir/output"
 
+    metaInf {
+        from "LICENSE.txt"
+        from("thirdparty"){
+            include "*"
+        }
+    }
     manifest {
 
         def libList = configurations.pluginLibs.collect {'lib/' + it.name}.join(' ')
 
-        attributes 'Rundeck-Plugin-Version': rundeckPluginVersion, 'Rundeck-Plugin-Archive': 'true', 'Rundeck-Plugin-Classnames': pluginClassNames, 'Rundeck-Plugin-Libs': "${libList}"
+        attributes 'Rundeck-Plugin-File-Version': version,
+                'Rundeck-Plugin-Version': rundeckPluginVersion,
+                'Rundeck-Plugin-Archive': 'true',
+                'Rundeck-Plugin-Classnames': pluginClassNames,
+                'Rundeck-Plugin-Libs': "${libList}"
+
     }
 }
 
@@ -117,6 +141,7 @@ task createPom << {
                             archive() {
                                 manifestEntries() {
                                     'Rundeck-Plugin-Version'(rundeckPluginVersion)
+                                    'Rundeck-Plugin-File-Version'(version)
                                     'Rundeck-Plugin-Archive'('true')
                                     'Rundeck-Plugin-Classnames'(pluginClassNames)
                                     'Rundeck-Plugin-Libs'(libList)
