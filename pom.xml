@@ -45,12 +45,6 @@
   </build>
   <dependencies>
     <dependency>
-      <groupId>org.rundeck</groupId>
-      <artifactId>rundeck-core</artifactId>
-      <version>${rundeckVersion}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>com.xebialabs.overthere</groupId>
       <artifactId>overthere</artifactId>
       <version>2.2.2</version>
