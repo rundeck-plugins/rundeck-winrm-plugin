@@ -146,7 +146,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
                             ".org/TR/xmlschema-2/#isoformats>", false, null))
 
             .property(PropertyUtil.longProp(CONFIG_TIMEOUT, "Connection Timeout", "Connection timeout, " +
-                    "in milliseconds. Default: 12000 (2 minutes).", false, null))
+                    "in milliseconds. Default: 15000 (15 seconds).", false, null))
 
             .mapping(CONFIG_AUTHENTICATION, PROJ_PROP_PREFIX + WINRM_AUTH_TYPE)
             .mapping(CONFIG_PROTOCOL, PROJ_PROP_PREFIX + WINRM_PROTOCOL)
