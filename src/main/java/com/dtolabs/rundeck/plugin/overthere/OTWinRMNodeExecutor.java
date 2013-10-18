@@ -1,6 +1,5 @@
 package com.dtolabs.rundeck.plugin.overthere;
 
-
 import com.dtolabs.rundeck.core.common.Framework;
 import com.dtolabs.rundeck.core.common.FrameworkProject;
 import com.dtolabs.rundeck.core.common.INodeEntry;
@@ -16,6 +15,7 @@ import com.dtolabs.rundeck.core.plugins.Plugin;
 import com.dtolabs.rundeck.core.plugins.configuration.Describable;
 import com.dtolabs.rundeck.core.plugins.configuration.Description;
 import com.dtolabs.rundeck.core.plugins.configuration.PropertyUtil;
+import com.dtolabs.rundeck.core.Constants;
 import com.dtolabs.rundeck.plugins.descriptions.PluginDescription;
 import com.dtolabs.rundeck.plugins.util.DescriptionBuilder;
 import com.xebialabs.overthere.*;
@@ -46,6 +46,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String SERVICE_PROVIDER_TYPE = "overthere-winrm";
 
     public static final int DEFAULT_WINRM_CONNECTION_TIMEOUT = 15000;
+    public static final boolean DEFAULT_WINRM_CONNECTION_ENCRYPTED = true;
     public static final String WINRM_PASSWORD_OPTION = "winrm-password-option";
     public static final String DEFAULT_WINRM_PASSWORD_OPTION = "winrmPassword";
     public static final int DEFAULT_HTTPS_PORT = 5986;
@@ -80,10 +81,10 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final Boolean DEFAULT_DEBUG_KERBEROS_AUTH = false;
     public static final String DEFAULT_WINRM_PROTOCOL = WINRM_PROTOCOL_HTTPS;
 
-    public static final WinrmHttpsCertificateTrustStrategy DEFAULT_CERT_TRUST = WinrmHttpsCertificateTrustStrategy
-            .STRICT;
+    public static final WinrmHttpsCertificateTrustStrategy DEFAULT_CERT_TRUST =
+        WinrmHttpsCertificateTrustStrategy.STRICT;
     public static final WinrmHttpsHostnameVerificationStrategy DEFAULT_HOSTNAME_VERIFY =
-            WinrmHttpsHostnameVerificationStrategy.BROWSER_COMPATIBLE;
+        WinrmHttpsHostnameVerificationStrategy.BROWSER_COMPATIBLE;
 
     //Config properties for GUI
     public static final String CONFIG_AUTHENTICATION = "authentication";
@@ -145,7 +146,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
                             ".org/TR/xmlschema-2/#isoformats>", false, null))
 
             .property(PropertyUtil.longProp(CONFIG_TIMEOUT, "Connection Timeout", "Connection timeout, " +
-                    "in milliseconds. Default: 12000 (2 minutes).", false, null))
+                    "in milliseconds. Default: 15000 (15 seconds).", false, null))
 
             .mapping(CONFIG_AUTHENTICATION, PROJ_PROP_PREFIX + WINRM_AUTH_TYPE)
             .mapping(CONFIG_PROTOCOL, PROJ_PROP_PREFIX + WINRM_PROTOCOL)
@@ -170,16 +171,22 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             final INodeEntry node) {
 
         ConnectionOptions options = null;
+        String logprompt = "[" + SERVICE_PROVIDER_TYPE + ":" + node.extractHostname() + "] ";
+
+        if (null == context.getExecutionListener()) {
+            System.out.println(logprompt + " Bad plugin context!  NULL ExecutionListener");
+        }
+
+        context.getExecutionListener().log(Constants.VERBOSE_LEVEL, logprompt + buildCommandLine(command));
 
         try {
             options = willUseConnectionOptions(new ConnectionOptionsBuilder(context, node, framework).build());
         } catch (ConfigurationException e) {
+            context.getExecutionListener().log(Constants.ERR_LEVEL, logprompt + e.getMessage());
             return NodeExecutorResultImpl.createFailure(StepFailureReason.ConfigurationFailure, e.getMessage(), node);
         }
 
-        if (null != context.getExecutionListener()) {
-            context.getExecutionListener().log(3, "[" + SERVICE_PROVIDER_TYPE + "] " + options);
-        }
+        context.getExecutionListener().log(Constants.VERBOSE_LEVEL, logprompt + options);
 
         int result = -1;
         try {
@@ -201,8 +208,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             } else {
                 message = "WinRM Error: " + re.getMessage();
             }
-            context.getExecutionListener().log(0,
-                    "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
+            context.getExecutionListener().log(Constants.ERR_LEVEL, logprompt + "failed: " + message);
             return NodeExecutorResultImpl.createFailure(Reason.WinRMProtocolError, message, re, node, -1);
         } catch (RuntimeIOException re) {
             String message = null;
@@ -212,8 +218,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             } else {
                 message = "runtime exception: " + re;
             }
-            context.getExecutionListener().log(0,
-                    "[" + SERVICE_PROVIDER_TYPE + "] failed: " + message);
+            context.getExecutionListener().log(Constants.ERR_LEVEL, logprompt + "failed: " + message);
             return NodeExecutorResultImpl.createFailure(StepFailureReason.IOFailure, message, re, node, -1);
         }
 
@@ -221,14 +226,10 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         final int resultCode = result;
         final boolean status = resultCode == 0;
 
-        if (!status) {
-            context.getExecutionListener().log(0,
-                    "[" + SERVICE_PROVIDER_TYPE + "] failed: exit code: " + resultCode);
-        }
-
         if (status) {
             return NodeExecutorResultImpl.createSuccess(node);
         } else {
+            context.getExecutionListener().log(Constants.ERR_LEVEL, logprompt + "failed: exit code: " + resultCode);
             return NodeExecutorResultImpl.createFailure(NodeStepFailureReason.NonZeroResultCode,
                     "[" + SERVICE_PROVIDER_TYPE + "] result code: " + resultCode, node, resultCode);
         }
@@ -382,15 +383,13 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
 
         public String getPassword() {
             final String passwordOption = resolveProperty(WINRM_PASSWORD_OPTION, DEFAULT_WINRM_PASSWORD_OPTION, getNode(),
-
-                    getFrameworkProject(), getFramework());
+                getFrameworkProject(), getFramework());
             return evaluateSecureOption(passwordOption, getContext());
         }
 
         public int getConnectionTimeout() throws ConfigurationException {
             return resolveIntProperty(WINRM_CONNECTION_TIMEOUT_PROPERTY, DEFAULT_WINRM_CONNECTION_TIMEOUT, getNode(),
-                    getFrameworkProject(),
-                    getFramework());
+                getFrameworkProject(), getFramework());
         }
 
         public String getUsername() {
@@ -415,13 +414,48 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             return resolveProperty(WINRM_AUTH_TYPE, DEFAULT_AUTH_TYPE, getNode(), getFrameworkProject(), getFramework());
         }
 
-        public String getCertTrustStrategy() {
-            return resolveProperty(WINRM_CERT_TRUST, DEFAULT_CERT_TRUST.toString(), getNode(), getFrameworkProject(), getFramework());
+        public WinrmHttpsCertificateTrustStrategy getCertTrustStrategy() {
+            String trust = resolveProperty(WINRM_CERT_TRUST, DEFAULT_CERT_TRUST.toString(),
+                getNode(), getFrameworkProject(), getFramework());
+            if ( trust == null )
+            {
+                return DEFAULT_CERT_TRUST;
+            }
+            if ( trust.equals(CERT_TRUST_DEFAULT))
+            {
+                return WinrmHttpsCertificateTrustStrategy.STRICT;
+            }
+            if ( trust.equals(CERT_TRUST_SELF_SIGNED))
+            {
+                return WinrmHttpsCertificateTrustStrategy.SELF_SIGNED;
+            }
+            if ( trust.equals(CERT_TRUST_ALL))
+            {
+                return WinrmHttpsCertificateTrustStrategy.ALLOW_ALL;
+            }
+            return DEFAULT_CERT_TRUST;
         }
 
-        public String getHostnameTrustStrategy() {
-            return resolveProperty(WINRM_HOSTNAME_TRUST, DEFAULT_HOSTNAME_VERIFY.toString(), getNode(), getFrameworkProject(),
-                    getFramework());
+        public WinrmHttpsHostnameVerificationStrategy getHostTrust() {
+            String trust = resolveProperty(WINRM_HOSTNAME_TRUST, DEFAULT_HOSTNAME_VERIFY.toString(),
+                getNode(), getFrameworkProject(), getFramework());
+            if ( trust == null )
+            {
+                return DEFAULT_HOSTNAME_VERIFY;
+            }
+            if ( trust.equals(HOSTNAME_TRUST_STRICT) )
+            {
+                return WinrmHttpsHostnameVerificationStrategy.STRICT;
+            }
+            if ( trust.equals(HOSTNAME_TRUST_BROWSER_COMPATIBLE) )
+            {
+                return WinrmHttpsHostnameVerificationStrategy.BROWSER_COMPATIBLE;
+            }
+            if ( trust.equals(HOSTNAME_TRUST_ALL) )
+            {
+                return WinrmHttpsHostnameVerificationStrategy.ALLOW_ALL;
+            }
+            return DEFAULT_HOSTNAME_VERIFY;
         }
 
         public String getProtocol() {
@@ -487,18 +521,8 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             }
 
             if (isHttps) {
-                final String certTrustStrategy = getCertTrustStrategy();
-                WinrmHttpsCertificateTrustStrategy strategy = WinrmHttpsCertificateTrustStrategy.valueOf
-                        (certTrustStrategy);
-                if (null != certTrustStrategy) {
-                    options.set(CifsConnectionBuilder.WINRM_HTTPS_CERTIFICATE_TRUST_STRATEGY, strategy);
-                }
-                final String hostnameTrustStrategy = getHostnameTrustStrategy();
-                WinrmHttpsHostnameVerificationStrategy hostStrat = WinrmHttpsHostnameVerificationStrategy.valueOf
-                        (hostnameTrustStrategy);
-                if (null != hostnameTrustStrategy) {
-                    options.set(CifsConnectionBuilder.WINRM_HTTPS_HOSTNAME_VERIFICATION_STRATEGY, hostStrat);
-                }
+                options.set(CifsConnectionBuilder.WINRM_HTTPS_CERTIFICATE_TRUST_STRATEGY, getCertTrustStrategy());
+                options.set(CifsConnectionBuilder.WINRM_HTTPS_HOSTNAME_VERIFICATION_STRATEGY, getHostTrust());
             }
 
             options.set(ADDRESS, getHostname());
