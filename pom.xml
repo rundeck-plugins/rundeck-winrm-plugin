@@ -63,4 +63,9 @@
       <scope>compile</scope>
     </dependency>
   </dependencies>
+  <scm>
+    <connection>scm:git:git@github.com:rundeck-plugins/rundeck-winrm-plugin.git</connection>
+    <developerConnection>scm:git:git@github.com:rundeck-plugins/rundeck-winrm-plugin.git</developerConnection>
+    <url>git@github.com:rundeck-plugins/rundeck-winrm-plugin.git</url>
+  </scm>
 </project>
