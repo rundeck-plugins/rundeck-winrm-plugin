@@ -155,8 +155,8 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             .mapping(CONFIG_SPN_ADD_PORT, PROJ_PROP_PREFIX + WINRM_SPN_ADD_PORT)
             .mapping(CONFIG_SPN_USE_HTTP, PROJ_PROP_PREFIX + WINRM_SPN_USE_HTTP)
             .mapping(CONFIG_LOCALE, PROJ_PROP_PREFIX + WINRM_LOCALE)
-            .mapping(CONFIG_WINRM_TIMEOUT, PROJ_PROP_PREFIX + WINRM_CONNECTION_TIMEOUT_PROPERTY)
-            .mapping(CONFIG_TIMEOUT, PROJ_PROP_PREFIX + WINRM_TIMEOUT)
+            .mapping(CONFIG_WINRM_TIMEOUT, PROJ_PROP_PREFIX + WINRM_TIMEOUT)
+            .mapping(CONFIG_TIMEOUT, PROJ_PROP_PREFIX + WINRM_CONNECTION_TIMEOUT_PROPERTY)
             .build();
 
     public Description getDescription() {
