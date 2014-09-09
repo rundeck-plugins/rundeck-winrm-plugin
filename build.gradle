@@ -1,7 +1,7 @@
 ext.pluginClassNames='com.dtolabs.rundeck.plugin.overthere.OTWinRMNodeExecutor'
 
 defaultTasks 'clean','build'
-version = '1.1'
+version = '1.2-SNAPSHOT'
 ext.rundeckPluginVersion= '1.1'
 apply plugin: 'java'
 apply plugin: 'idea'
@@ -96,8 +96,14 @@ task createPom << {
 
     pom {
         project {
+            parent{
+              artifactId 'rundeck-plugins-parent'
+              groupId 'org.rundeck-plugins'
+              version '2'
+            }
+
             artifactId 'rundeck-winrm-plugin'
-            groupId "com.dtolabs.rundeck"
+            groupId "org.rundeck-plugins"
             inceptionYear '2011'
             packaging 'jar'
             version version
@@ -151,7 +157,12 @@ task createPom << {
                     }
                 }
             }
-            
+            scm{
+                connection 'scm:git:git@github.com:rundeck-plugins/rundeck-winrm-plugin.git'
+                developerConnection 'scm:git:git@github.com:rundeck-plugins/rundeck-winrm-plugin.git'
+                url 'git@github.com:rundeck-plugins/rundeck-winrm-plugin.git'
+                tag 'HEAD'
+            }
         }
     }.writeTo("pom.xml")
 }
