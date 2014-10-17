@@ -11,7 +11,9 @@ Compatible with Rundeck 1.5.x+
 Install
 ====
 
-Copy the `rundeck-winrm-plugin-1.1.jar` to the `libext/` directory for Rundeck.
+Download from the [releases page](https://github.com/rundeck-plugins/rundeck-winrm-plugin/releases).
+
+Copy the `rundeck-winrm-plugin-1.2.jar` to the `libext/` directory for Rundeck.
 
 Configure The Plugin
 ====
