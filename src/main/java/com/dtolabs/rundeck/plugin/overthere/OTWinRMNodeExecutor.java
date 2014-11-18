@@ -67,6 +67,9 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String WINRM_LOCALE = "winrm-locale";
     public static final String WINRM_TIMEOUT = "winrm-timeout";
 
+    public static final String WINRM_IS_DOMAIN_MEMBER = "winrm-is-domain-member";
+    public static final Boolean DEFAULT_IS_DOMAIN_MEMBER = false;
+
     public static final String HOSTNAME_TRUST_BROWSER_COMPATIBLE = "browser-compatible";
     public static final String HOSTNAME_TRUST_STRICT = "strict";
     public static final String HOSTNAME_TRUST_ALL = "all";
@@ -467,6 +470,11 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
                     getFramework());
         }
 
+        public Boolean isDomainMember() {
+          return resolveBooleanProperty(WINRM_IS_DOMAIN_MEMBER, DEFAULT_IS_DOMAIN_MEMBER, getNode(), getFrameworkProject(),
+              getFramework());
+        }
+
         public Boolean isWinrmSpnAddPort() {
             return resolveBooleanProperty(WINRM_SPN_ADD_PORT, false, getNode(), getFrameworkProject(),
                     getFramework());
@@ -586,11 +594,21 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
      *
      * @return
      */
-    protected String getKerberosUsername(final ConnectionOptionsBuilder options) {
+    protected String getKerberosUsername(final ConnectionOptionsBuilder options) throws ConfigurationException{
         String username = options.getUsername();
         String hostname = options.getHostname();
         if (username.indexOf("@") < 0) {
-            username = username + "@" + hostname.toUpperCase();
+
+            String domain = hostname.toUpperCase();
+            int domainNameIndex = domain.indexOf(".") +1;
+
+            if (options.isDomainMember())
+              if (domainNameIndex==0 || domainNameIndex >= domain.length())
+                throw new ConfigurationException("Node FQDN is not correct for configuration as domain member (no '.' found:" + domain);
+              else
+                domain = domain.substring(domainNameIndex);
+
+            username = username + "@" + domain;
         } else if (username.indexOf("@") > 0) {
             String domain = username.substring(username.indexOf("@"));
             username = username.substring(0, username.indexOf("@")) + domain.toUpperCase();
