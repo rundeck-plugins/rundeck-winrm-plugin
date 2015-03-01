@@ -30,7 +30,7 @@ repositories {
     mavenCentral()
 }
 dependencies {
-    pluginLibs(group: 'com.xebialabs.overthere', name: 'overthere', version: '2.4.2'){
+    pluginLibs(group: 'com.xebialabs.overthere', name: 'overthere', version: '2.4.8'){
         exclude( module: 'bcprov-jdk16')
         exclude( module: 'jzlib')
         exclude( module: 'sshj')
@@ -47,7 +47,7 @@ dependencies {
     pluginLibs(group: 'org.slf4j', name: 'slf4j-nop', version: '1.6.3')
     //nb: commons-codec 1.6 is a transitive of overthere 2.2.2 via httpclient 4.2.1. but maven only uses explicit deps, and overthere 2.2.2 declares 1.5
     //TODO: remove this explicit dep after updating overthere to 2.2.3+
-//    pluginLibs(group: 'commons-codec', name: 'commons-codec', version: '1.6')
+ //   pluginLibs(group: 'commons-codec', name: 'commons-codec', version: '1.6')
 
     compile(group: 'org.rundeck', name: 'rundeck-core', version: rundeckVersion)
 }

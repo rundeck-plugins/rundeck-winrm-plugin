@@ -66,6 +66,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String WINRM_SPN_USE_HTTP = "winrm-spn-use-http";
     public static final String WINRM_LOCALE = "winrm-locale";
     public static final String WINRM_TIMEOUT = "winrm-timeout";
+    
 
     public static final String HOSTNAME_TRUST_BROWSER_COMPATIBLE = "browser-compatible";
     public static final String HOSTNAME_TRUST_STRICT = "strict";
@@ -80,6 +81,8 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String DEBUG_KERBEROS_AUTH = "winrm-kerberos-debug";
     public static final Boolean DEFAULT_DEBUG_KERBEROS_AUTH = false;
     public static final String DEFAULT_WINRM_PROTOCOL = WINRM_PROTOCOL_HTTPS;
+    public static final String KERBEROS_CACHE = "kerberos-cache";
+    public static final Boolean DEFAULT_KERBEROS_CACHE = false;
 
     public static final WinrmHttpsCertificateTrustStrategy DEFAULT_CERT_TRUST =
         WinrmHttpsCertificateTrustStrategy.STRICT;
@@ -484,6 +487,11 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         public String getWinrmTimeout() {
             return resolveProperty(WINRM_TIMEOUT, null, getNode(), getFrameworkProject(), getFramework());
         }
+        
+        public Boolean isKerberosCacheEnabled() {
+            return resolveBooleanProperty(KERBEROS_CACHE, DEFAULT_KERBEROS_CACHE, getNode(), getFrameworkProject(),
+                    getFramework());
+        }
 
         private int getPort(final int defaultPort) throws ConfigurationException {
             // If the node entry contains a non-default port, configure the connection to use it.
@@ -511,6 +519,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
                 options.set(CifsConnectionBuilder.WINRM_KERBEROS_DEBUG, isDebugKerberosAuth());
                 options.set(CifsConnectionBuilder.WINRM_KERBEROS_ADD_PORT_TO_SPN, isWinrmSpnAddPort());
                 options.set(CifsConnectionBuilder.WINRM_KERBEROS_USE_HTTP_SPN, isWinrmSpnUseHttp());
+                options.set(CifsConnectionBuilder.WINRM_KERBEROS_TICKET_CACHE, isKerberosCacheEnabled());
             } else {
                 username = getUsername();
             }
