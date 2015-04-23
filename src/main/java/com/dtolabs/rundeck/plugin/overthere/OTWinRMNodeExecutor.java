@@ -1,7 +1,6 @@
 package com.dtolabs.rundeck.plugin.overthere;
 
 import com.dtolabs.rundeck.core.common.Framework;
-import com.dtolabs.rundeck.core.common.FrameworkProject;
 import com.dtolabs.rundeck.core.common.INodeEntry;
 import com.dtolabs.rundeck.core.dispatcher.DataContextUtils;
 import com.dtolabs.rundeck.core.execution.ExecutionContext;
@@ -16,7 +15,6 @@ import com.dtolabs.rundeck.core.plugins.configuration.Describable;
 import com.dtolabs.rundeck.core.plugins.configuration.Description;
 import com.dtolabs.rundeck.core.plugins.configuration.PropertyUtil;
 import com.dtolabs.rundeck.core.Constants;
-import com.dtolabs.rundeck.plugins.descriptions.PluginDescription;
 import com.dtolabs.rundeck.plugins.util.DescriptionBuilder;
 import com.xebialabs.overthere.*;
 import com.xebialabs.overthere.cifs.CifsConnectionBuilder;
@@ -301,14 +299,21 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
      * named "project.X", then framework properties named "framework.X". If none of those exist, return the default
      * value
      */
-    private static String resolveProperty(final String nodeAttribute, final String defaultValue, final INodeEntry node,
-            final FrameworkProject frameworkProject, final Framework framework) {
-
+    private static String resolveProperty(
+            final String nodeAttribute,
+            final String defaultValue,
+            final INodeEntry node,
+            final String frameworkProject,
+            final Framework framework
+    )
+    {
         if (null != node.getAttributes().get(nodeAttribute)) {
             return node.getAttributes().get(nodeAttribute);
-        } else if (frameworkProject.hasProperty(PROJ_PROP_PREFIX + nodeAttribute)
-                && !"".equals(frameworkProject.getProperty(PROJ_PROP_PREFIX + nodeAttribute))) {
-            return frameworkProject.getProperty(PROJ_PROP_PREFIX + nodeAttribute);
+        } else if (
+                framework.hasProjectProperty(PROJ_PROP_PREFIX + nodeAttribute, frameworkProject)
+                && !"".equals(framework.getProjectProperty(frameworkProject, PROJ_PROP_PREFIX + nodeAttribute))
+                ) {
+            return framework.getProjectProperty(frameworkProject, PROJ_PROP_PREFIX + nodeAttribute);
         } else if (framework.hasProperty(FWK_PROP_PREFIX + nodeAttribute)) {
             return framework.getProperty(FWK_PROP_PREFIX + nodeAttribute);
         } else {
@@ -316,8 +321,14 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         }
     }
 
-    private static int resolveIntProperty(final String attribute, final int defaultValue, final INodeEntry iNodeEntry,
-            final FrameworkProject frameworkProject, final Framework framework) throws ConfigurationException {
+    private static int resolveIntProperty(
+            final String attribute,
+            final int defaultValue,
+            final INodeEntry iNodeEntry,
+            final String frameworkProject,
+            final Framework framework
+    ) throws ConfigurationException
+    {
         int value = defaultValue;
         final String string = resolveProperty(attribute, null, iNodeEntry, frameworkProject, framework);
         if (null != string) {
@@ -330,9 +341,14 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         return value;
     }
 
-    private static long resolveLongProperty(final String attribute, final long defaultValue,
+    private static long resolveLongProperty(
+            final String attribute,
+            final long defaultValue,
             final INodeEntry iNodeEntry,
-            final FrameworkProject frameworkProject, final Framework framework) throws ConfigurationException {
+            final String frameworkProject,
+            final Framework framework
+    ) throws ConfigurationException
+    {
         long value = defaultValue;
         final String string = resolveProperty(attribute, null, iNodeEntry, frameworkProject, framework);
         if (null != string) {
@@ -345,9 +361,14 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         return value;
     }
 
-    private static boolean resolveBooleanProperty(final String attribute, final boolean defaultValue,
+    private static boolean resolveBooleanProperty(
+            final String attribute,
+            final boolean defaultValue,
             final INodeEntry iNodeEntry,
-            final FrameworkProject frameworkProject, final Framework framework) {
+            final String frameworkProject,
+            final Framework framework
+    )
+    {
         boolean value = defaultValue;
         final String string = resolveProperty(attribute, null, iNodeEntry, frameworkProject, framework);
         if (null != string) {
@@ -371,14 +392,13 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         private ExecutionContext context;
         private INodeEntry node;
         private Framework framework;
-        private FrameworkProject frameworkProject;
+        private String frameworkProject;
 
         ConnectionOptionsBuilder(final ExecutionContext context, final INodeEntry node, final Framework framework) {
             this.context = context;
             this.node = node;
             this.framework = framework;
-            this.frameworkProject = framework.getFrameworkProjectMgr().getFrameworkProject(
-                    context.getFrameworkProject());
+            this.frameworkProject = context.getFrameworkProject();
         }
 
         public String getPassword() {
@@ -415,10 +435,14 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         }
 
         public WinrmHttpsCertificateTrustStrategy getCertTrustStrategy() {
-            String trust = resolveProperty(WINRM_CERT_TRUST, DEFAULT_CERT_TRUST.toString(),
-                getNode(), getFrameworkProject(), getFramework());
-            if ( trust == null )
-            {
+            String trust = resolveProperty(
+                    WINRM_CERT_TRUST,
+                    DEFAULT_CERT_TRUST.toString(),
+                    getNode(),
+                    getFrameworkProject(),
+                    getFramework()
+            );
+            if (trust == null) {
                 return DEFAULT_CERT_TRUST;
             }
             if ( trust.equals(CERT_TRUST_DEFAULT))
@@ -437,10 +461,14 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         }
 
         public WinrmHttpsHostnameVerificationStrategy getHostTrust() {
-            String trust = resolveProperty(WINRM_HOSTNAME_TRUST, DEFAULT_HOSTNAME_VERIFY.toString(),
-                getNode(), getFrameworkProject(), getFramework());
-            if ( trust == null )
-            {
+            String trust = resolveProperty(
+                    WINRM_HOSTNAME_TRUST,
+                    DEFAULT_HOSTNAME_VERIFY.toString(),
+                    getNode(),
+                    getFrameworkProject(),
+                    getFramework()
+            );
+            if (trust == null) {
                 return DEFAULT_HOSTNAME_VERIFY;
             }
             if ( trust.equals(HOSTNAME_TRUST_STRICT) )
@@ -459,12 +487,23 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         }
 
         public String getProtocol() {
-            return resolveProperty(WINRM_PROTOCOL, DEFAULT_WINRM_PROTOCOL, getNode(), getFrameworkProject(), getFramework());
+            return resolveProperty(
+                    WINRM_PROTOCOL,
+                    DEFAULT_WINRM_PROTOCOL,
+                    getNode(),
+                    getFrameworkProject(),
+                    getFramework()
+            );
         }
 
         public Boolean isDebugKerberosAuth() {
-            return resolveBooleanProperty(DEBUG_KERBEROS_AUTH, DEFAULT_DEBUG_KERBEROS_AUTH, getNode(), getFrameworkProject(),
-                    getFramework());
+            return resolveBooleanProperty(
+                    DEBUG_KERBEROS_AUTH,
+                    DEFAULT_DEBUG_KERBEROS_AUTH,
+                    getNode(),
+                    getFrameworkProject(),
+                    getFramework()
+            );
         }
 
         public Boolean isWinrmSpnAddPort() {
@@ -556,7 +595,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             return framework;
         }
 
-        public FrameworkProject getFrameworkProject() {
+        public String getFrameworkProject() {
             return frameworkProject;
         }
     }
