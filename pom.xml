@@ -19,6 +19,9 @@
       <distribution>repo</distribution>
     </license>
   </licenses>
+  <properties>
+    <plugin.release.version>2.5.1</plugin.release.version>
+  </properties>
   <scm>
     <connection>scm:git:git@github.com:rundeck-plugins/rundeck-winrm-plugin.git</connection>
     <developerConnection>scm:git:git@github.com:rundeck-plugins/rundeck-winrm-plugin.git</developerConnection>
@@ -62,6 +65,10 @@
             </manifestEntries>
           </archive>
         </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-release-plugin</artifactId>
+        <version>${plugin.release.version}</version>
       </plugin>
     </plugins>
   </build>
