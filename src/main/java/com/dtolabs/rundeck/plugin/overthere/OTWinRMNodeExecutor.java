@@ -721,6 +721,10 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             username = username + "@" + options.getDomain().toUpperCase();
         } else if (username.indexOf("@") < 0) {
             String domain = hostname.toUpperCase();
+            if(domain.contains(":")) {
+                //remove port if present
+                domain = domain.substring(0, domain.indexOf(":"));
+            }
             int domainNameIndex = domain.indexOf(".") + 1;
 
             if (options.isDomainMember()) {
