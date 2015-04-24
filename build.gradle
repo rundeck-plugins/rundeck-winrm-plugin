@@ -104,7 +104,7 @@ task createPom << {
             inceptionYear '2011'
             packaging 'jar'
             version version
-            name "RunDeck WinRM NodeExecutor Plugin"
+            name "Rundeck WinRM NodeExecutor Plugin"
             url 'http://rundeck.org'
             licenses {
                 license {
