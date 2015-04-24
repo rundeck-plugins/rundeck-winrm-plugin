@@ -26,13 +26,17 @@ Or set as the default NodeExecutor for your project/framework properties file, w
 
 These Node attributes are used to connect to the remote host:
 
-* `username` - Remote username. If using Kerberos, should be in the form "user@DOMAIN". If not, @hostname will be appended to produce the domain.
+* `username` - Remote username. If using Kerberos, see [Using Kerberos Authentication](#using-kerberos-authentication)
 * `hostname` - Remote host. Can include "host:port" to specify port number other than the default 5985/5986 (http/https).
 
-You must create a Rundeck Job with a [Secure Authentication Option][1], to pass in the password to use.  The default name
+Password authentcation can be performed in one of two ways:
+
+1. Create a Rundeck Job with a [Secure Authentication Option][1], to pass in the password to use.  The default name
 of this option should be "winrmPassword", but you can change the name that is expected, if necessary.
+2. Use the Rundeck [Key Storage Facility][2] to store a password, and use the path to it as the `winrm-password-storage-path`
 
 [1]: http://rundeck.org/docs/manual/job-options.html#secure-options
+[2]: http://rundeck.org/docs/administration/key-storage.html
 
 These additional configuration attributes can be set on the Node, or in the project.properties or framework.properties. To add them to project.properties, prefix them with "project." and for framework.properties prefix them with "framework.":
 
