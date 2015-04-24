@@ -716,12 +716,15 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             String domain = hostname.toUpperCase();
             int domainNameIndex = domain.indexOf(".") +1;
 
-            if (options.isDomainMember())
-              if (domainNameIndex==0 || domainNameIndex >= domain.length())
-                throw new ConfigurationException("Node FQDN is not correct for configuration as domain member (no '.' found:" + domain);
-              else
-                domain = domain.substring(domainNameIndex);
-
+            if (options.isDomainMember()) {
+                if (domainNameIndex == 0 || domainNameIndex >= domain.length()) {
+                    throw new ConfigurationException(
+                            "Node FQDN is not correct for configuration as domain member (no '.' found:" + domain + ")"
+                    );
+                } else {
+                    domain = domain.substring(domainNameIndex);
+                }
+            }
             username = username + "@" + domain;
         } else if (username.indexOf("@") > 0) {
             String domain = username.substring(username.indexOf("@"));
