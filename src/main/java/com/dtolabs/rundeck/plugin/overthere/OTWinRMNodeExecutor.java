@@ -81,6 +81,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     
 
     public static final String WINRM_IS_DOMAIN_MEMBER = "winrm-is-domain-member";
+    public static final String WINRM_DOMAIN = "winrm-domain";
     public static final Boolean DEFAULT_IS_DOMAIN_MEMBER = false;
 
     public static final String HOSTNAME_TRUST_BROWSER_COMPATIBLE = "browser-compatible";
@@ -582,6 +583,9 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
           return resolveBooleanProperty(WINRM_IS_DOMAIN_MEMBER, DEFAULT_IS_DOMAIN_MEMBER, getNode(), getFrameworkProject(),
               getFramework());
         }
+        public String getDomain() {
+            return resolveProperty(WINRM_DOMAIN, null, getNode(), getFrameworkProject(), getFramework());
+        }
 
         public Boolean isWinrmSpnAddPort() {
             return resolveBooleanProperty(WINRM_SPN_ADD_PORT, false, getNode(), getFrameworkProject(),
@@ -703,6 +707,8 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     /**
      * Return the full username@domain to use for kerberos authentication. The default implementation will append
      * "@HOSTNAME" if no "@DOMAIN" is present, otherwise it will convert "@domain" to "@DOMAIN" and return the value.
+     * if winrm-is-domain-member is true, the hostname will be reduced by one part of the fqdn, from host.domain.tld to
+     * domain.tld, and user@DOMAIN.TLD returned. If winrm-domain is set, it will be used.
      *
      * @param options options builder
      *
@@ -711,15 +717,18 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     protected String getKerberosUsername(final ConnectionOptionsBuilder options) throws ConfigurationException{
         String username = options.getUsername();
         String hostname = options.getHostname();
-        if (username.indexOf("@") < 0) {
-
+        if (username.indexOf("@") < 0 && null != options.getDomain()) {
+            username = username + "@" + options.getDomain().toUpperCase();
+        } else if (username.indexOf("@") < 0) {
             String domain = hostname.toUpperCase();
-            int domainNameIndex = domain.indexOf(".") +1;
+            int domainNameIndex = domain.indexOf(".") + 1;
 
             if (options.isDomainMember()) {
                 if (domainNameIndex == 0 || domainNameIndex >= domain.length()) {
                     throw new ConfigurationException(
-                            "Node FQDN is not correct for configuration as domain member (no '.' found:" + domain + ")"
+                            "Node FQDN is not correct for configuration as domain member (no '.' found:" +
+                            domain +
+                            ")"
                     );
                 } else {
                     domain = domain.substring(domainNameIndex);
