@@ -6,7 +6,7 @@ ext.rundeckPluginVersion= '1.1'
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'project-report'
-sourceCompatibility = 1.5
+sourceCompatibility = 1.6
 archivesBaseName = "rundeck-winrm-plugin"
 ext.rundeckVersion='2.3.2'
 
