@@ -6,14 +6,14 @@ This is a [Rundeck Node Execution plugin][1] that uses WinRM to connect to Windo
 [1]: http://rundeck.org/docs/manual/plugins.html#node-execution-plugins
 [2]: https://github.com/xebialabs/overthere/
 
-Compatible with Rundeck 1.5.x+
+Compatible with Rundeck 2.3.x+
 
 Install
 ====
 
 Download from the [releases page](https://github.com/rundeck-plugins/rundeck-winrm-plugin/releases).
 
-Copy the `rundeck-winrm-plugin-1.2.jar` to the `libext/` directory for Rundeck.
+Copy the `rundeck-winrm-plugin-1.3.jar` to the `libext/` directory for Rundeck.
 
 Configure The Plugin
 ====
@@ -45,6 +45,9 @@ These additional configuration attributes can be set on the Node, or in the proj
 * `winrm-locale` - Locale to use, default: "en-us".
 * `winrm-password-option` - Specifies a [Secure Authentication Option][1] from a Job to use as the authentication password. (format: "NAME" ).
 	* default-value: "winrmPassword", so simply define a Secure Authentication Option on your Job with the name "winrmPassword".
+* `winrm-password-storage-path` - Specifies a [Key Storage Path][] to look up the authentication password from.  It can contain property references like `${node.name}` to evaluate at runtime.  If specified, it will be used instead of the `winrm-password-option`.
+
+[Key Storage Path]: http://rundeck.org/docs/administration/key-storage.html
 
 
 Using Kerberos Authentication

@@ -6,9 +6,9 @@ ext.rundeckPluginVersion= '1.1'
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'project-report'
-sourceCompatibility = 1.5
+sourceCompatibility = 1.6
 archivesBaseName = "rundeck-winrm-plugin"
-ext.rundeckVersion='1.5.3'
+ext.rundeckVersion='2.3.2'
 
 
 
@@ -45,9 +45,6 @@ dependencies {
     }
 //    pluginLibs(group: 'org.slf4j', name: 'slf4j-simple', version: '1.6.3')
     pluginLibs(group: 'org.slf4j', name: 'slf4j-nop', version: '1.6.3')
-    //nb: commons-codec 1.6 is a transitive of overthere 2.2.2 via httpclient 4.2.1. but maven only uses explicit deps, and overthere 2.2.2 declares 1.5
-    //TODO: remove this explicit dep after updating overthere to 2.2.3+
- //   pluginLibs(group: 'commons-codec', name: 'commons-codec', version: '1.6')
 
     compile(group: 'org.rundeck', name: 'rundeck-core', version: rundeckVersion)
 }

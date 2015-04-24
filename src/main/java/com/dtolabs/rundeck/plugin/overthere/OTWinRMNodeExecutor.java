@@ -1,5 +1,6 @@
 package com.dtolabs.rundeck.plugin.overthere;
 
+import com.dtolabs.rundeck.core.Constants;
 import com.dtolabs.rundeck.core.common.Framework;
 import com.dtolabs.rundeck.core.common.INodeEntry;
 import com.dtolabs.rundeck.core.dispatcher.DataContextUtils;
@@ -14,9 +15,14 @@ import com.dtolabs.rundeck.core.plugins.Plugin;
 import com.dtolabs.rundeck.core.plugins.configuration.Describable;
 import com.dtolabs.rundeck.core.plugins.configuration.Description;
 import com.dtolabs.rundeck.core.plugins.configuration.PropertyUtil;
-import com.dtolabs.rundeck.core.Constants;
+import com.dtolabs.rundeck.core.plugins.configuration.StringRenderingConstants;
+import com.dtolabs.rundeck.core.storage.ResourceMeta;
 import com.dtolabs.rundeck.plugins.util.DescriptionBuilder;
-import com.xebialabs.overthere.*;
+import com.dtolabs.rundeck.plugins.util.PropertyBuilder;
+import com.xebialabs.overthere.CmdLine;
+import com.xebialabs.overthere.ConnectionOptions;
+import com.xebialabs.overthere.OverthereConnection;
+import com.xebialabs.overthere.RuntimeIOException;
 import com.xebialabs.overthere.cifs.CifsConnectionBuilder;
 import com.xebialabs.overthere.cifs.CifsConnectionType;
 import com.xebialabs.overthere.cifs.WinrmHttpsCertificateTrustStrategy;
@@ -24,8 +30,15 @@ import com.xebialabs.overthere.cifs.WinrmHttpsHostnameVerificationStrategy;
 import com.xebialabs.overthere.cifs.winrm.WinRmRuntimeIOException;
 import com.xebialabs.overthere.util.ConsoleOverthereExecutionOutputHandler;
 import com.xebialabs.overthere.util.DefaultAddressPortMapper;
+import org.rundeck.storage.api.Path;
+import org.rundeck.storage.api.PathUtil;
+import org.rundeck.storage.api.StorageException;
 
-import java.util.*;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import static com.xebialabs.overthere.ConnectionOptions.*;
 import static com.xebialabs.overthere.OperatingSystemFamily.WINDOWS;
@@ -46,6 +59,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final int DEFAULT_WINRM_CONNECTION_TIMEOUT = 15000;
     public static final boolean DEFAULT_WINRM_CONNECTION_ENCRYPTED = true;
     public static final String WINRM_PASSWORD_OPTION = "winrm-password-option";
+    public static final String WINRM_PASSWORD_STORAGE_PATH = "winrm-password-storage-path";
     public static final String DEFAULT_WINRM_PASSWORD_OPTION = "winrmPassword";
     public static final int DEFAULT_HTTPS_PORT = 5986;
     public static final int DEFAULT_HTTP_PORT = 5985;
@@ -97,6 +111,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String CONFIG_LOCALE = "locale";
     public static final String CONFIG_WINRM_TIMEOUT = "winrmTimeout";
     private static final String CONFIG_TIMEOUT = "timeout";
+    private static final String CONFIG_PASSWORD_STORAGE_PATH = "passwordStoragePath";
 
     private Framework framework;
     private static final String PROJ_PROP_PREFIX = "project.";
@@ -143,12 +158,34 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
                     "Locale, default: en-us.", false, null))
 
             .property(PropertyUtil.string(CONFIG_WINRM_TIMEOUT, "WinRM Timeout",
-                    "WinRM protocol Timeout, in XML Schema Duration format. (Default: PT60.000S) see: <http://www.w3" +
+                    "WinRM protocol Timeout, in XML Schema Duration format. (Default: PT60.000S) \n\n" +
+                    "see: <http://www.w3" +
                             ".org/TR/xmlschema-2/#isoformats>", false, null))
 
             .property(PropertyUtil.longProp(CONFIG_TIMEOUT, "Connection Timeout", "Connection timeout, " +
                     "in milliseconds. Default: 15000 (15 seconds).", false, null))
-
+            .property(
+                      PropertyBuilder.builder()
+                                     .string(CONFIG_PASSWORD_STORAGE_PATH)
+                                     .title("Password Storage")
+                                     .description(
+                                             "Key Storage Path for winrm Password.\n\n" +
+                                             "The path can contain property references like `${node.name}`."
+                                     )
+                                     .renderingOption(
+                                             StringRenderingConstants.SELECTION_ACCESSOR_KEY,
+                                             StringRenderingConstants.SelectionAccessor.STORAGE_PATH
+                                     )
+                                     .renderingOption(
+                                             StringRenderingConstants.STORAGE_PATH_ROOT_KEY,
+                                             "keys"
+                                     )
+                                     .renderingOption(
+                                             StringRenderingConstants.STORAGE_FILE_META_FILTER_KEY,
+                                             "Rundeck-data-type=password"
+                                     )
+                                     .build()
+            )
             .mapping(CONFIG_AUTHENTICATION, PROJ_PROP_PREFIX + WINRM_AUTH_TYPE)
             .mapping(CONFIG_PROTOCOL, PROJ_PROP_PREFIX + WINRM_PROTOCOL)
             .mapping(CONFIG_CERT_TRUST, PROJ_PROP_PREFIX + WINRM_CERT_TRUST)
@@ -158,6 +195,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             .mapping(CONFIG_LOCALE, PROJ_PROP_PREFIX + WINRM_LOCALE)
             .mapping(CONFIG_WINRM_TIMEOUT, PROJ_PROP_PREFIX + WINRM_TIMEOUT)
             .mapping(CONFIG_TIMEOUT, PROJ_PROP_PREFIX + WINRM_CONNECTION_TIMEOUT_PROPERTY)
+            .mapping(CONFIG_PASSWORD_STORAGE_PATH, PROJ_PROP_PREFIX + WINRM_PASSWORD_STORAGE_PATH)
             .build();
 
     public Description getDescription() {
@@ -404,9 +442,37 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             this.frameworkProject = context.getFrameworkProject();
         }
 
-        public String getPassword() {
-            final String passwordOption = resolveProperty(WINRM_PASSWORD_OPTION, DEFAULT_WINRM_PASSWORD_OPTION, getNode(),
-                getFrameworkProject(), getFramework());
+        public String getPassword()  throws ConfigurationException{
+            //look for storage option
+            String storagePath = resolveProperty(WINRM_PASSWORD_STORAGE_PATH, null,
+                    getNode(), getFrameworkProject(), getFramework());
+            if(null!=storagePath){
+                //look up storage value
+                if (storagePath.contains("${")) {
+                    storagePath = DataContextUtils.replaceDataReferences(
+                            storagePath,
+                            context.getDataContext()
+                    );
+                }
+                Path path = PathUtil.asPath(storagePath);
+                try {
+                    ResourceMeta contents = context.getStorageTree().getResource(path)
+                            .getContents();
+                    ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                    contents.writeContent(byteArrayOutputStream);
+                    return new String(byteArrayOutputStream.toByteArray());
+                } catch (StorageException e) {
+                    throw new ConfigurationException("Failed to read the winrm password for " +
+                            "storage path: " + storagePath + ": " + e.getMessage());
+                } catch (IOException e) {
+                    throw new ConfigurationException("Failed to read the winrm password for " +
+                            "storage path: " + storagePath + ": " + e.getMessage());
+                }
+            }
+            //else look up option value
+            final String passwordOption = resolveProperty(WINRM_PASSWORD_OPTION,
+                    DEFAULT_WINRM_PASSWORD_OPTION, getNode(),
+                    getFrameworkProject(), getFramework());
             return evaluateSecureOption(passwordOption, getContext());
         }
 
@@ -622,7 +688,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
      *
      * @return
      */
-    protected String getClearAuthPassword(final ConnectionOptionsBuilder options) {
+    protected String getClearAuthPassword(final ConnectionOptionsBuilder options) throws ConfigurationException {
         return options.getPassword();
     }
 
