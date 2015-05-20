@@ -90,7 +90,7 @@ The username used for Kerberos authentication is created in this way:
 Configure Kerberos
 ----
 
-Kerberos authentication requires you to set up some Java System Properties, or a kb5.conf file to define which domains map to which Domain Controllers.  You can follow the [Kerberos Requirements](http://docs.oracle.com/javase/1.4.2/docs/guide/security/jgss/tutorials/KerberosReq.html) for Java.  To simply use a single domain and KDC, set these Java System Props at startup of the Rundeck server:
+Kerberos authentication requires you to set up some Java System Properties, or a kb5.conf file to define which domains map to which Domain Controllers.  You can follow the [Kerberos Requirements](http://docs.oracle.com/javase/7/docs/technotes/guides/security/jgss/tutorials/KerberosReq.html) for Java.  To simply use a single domain and KDC, set these Java System Props at startup of the Rundeck server:
 
     -Djava.security.krb5.realm=<example.com> -Djava.security.krb5.kdc=<kdc.example.com>. 
 
