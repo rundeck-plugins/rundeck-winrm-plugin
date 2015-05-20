@@ -15,6 +15,16 @@ Download from the [releases page](https://github.com/rundeck-plugins/rundeck-win
 
 Copy the `rundeck-winrm-plugin-1.3.jar` to the `libext/` directory for Rundeck.
 
+Configure the Remote Windows Node
+====
+
+Be sure to follow the directions in the OverThere library for [Setting up a Windows host for Winrm Internal](https://github.com/xebialabs/overthere/#winrm-winrm_internal-and-winrm_native).
+
+If using Kerberos for authentication, also follow these guides:
+
+* [Kerberos - source host](https://github.com/xebialabs/overthere/#kerberos---source-host)
+* [Kerberos - remote host](https://github.com/xebialabs/overthere/#kerberos---remote-host)
+
 Configure The Plugin
 ====
 
