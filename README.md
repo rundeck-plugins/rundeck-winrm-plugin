@@ -77,14 +77,14 @@ Configure these node properties, or set "framework.X" or "project.X" in your fra
 * `winrm-spn-add-port` - true/false, if true, add the port to the SPN used for authentication. Default: false.
 * `winrm-spn-use-http` - true/false, if true, use 'HTTP' instead of 'WSMAN' as the protocol for the SPN used for authentication. Default: false.
 * `winrm-domain` - Kerberos domain to use if not set via the username.
-* `winrm-is-domain-user` - Option to truncate hostname when used as domain for kerberos login. If set to "true", replaces "host.domain.tld" with "domain.tld" appending to username.
+* `winrm-is-domain-member` - Option to truncate hostname when used as domain for kerberos login. If set to "true", replaces "host.domain.tld" with "domain.tld" appending to username.
 
 The username used for Kerberos authentication is created in this way:
 
 * if `username` value looks like `user@domain` use `username@DOMAIN` (uppercase domain name)
 * if username does not contain `@` then:
     * if `winrm-domain` is set, use `username@DOMAIN` (uppercase winrm-domain) 
-    * if `winrm-is-domain-user` is "true", then convert hostname of "host.domain.tld" to "domain.tld" and use `username@DOMAIN.TLD`
+    * if `winrm-is-domain-member` is "true", then convert hostname of "host.domain.tld" to "domain.tld" and use `username@DOMAIN.TLD`
     * otherwise use `username@HOSTNAME` (uppercase hostname)
 
 Configure Kerberos
