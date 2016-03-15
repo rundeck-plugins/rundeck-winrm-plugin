@@ -1,7 +1,7 @@
 ext.pluginClassNames='com.dtolabs.rundeck.plugin.overthere.OTWinRMNodeExecutor'
 
 defaultTasks 'clean','build'
-version = '1.3.2-SNAPSHOT'
+version = '1.3.3-SNAPSHOT'
 ext.rundeckPluginVersion= '1.1'
 apply plugin: 'java'
 apply plugin: 'idea'
@@ -30,7 +30,7 @@ repositories {
     mavenCentral()
 }
 dependencies {
-    pluginLibs(group: 'com.xebialabs.overthere', name: 'overthere', version: '4.2.1'){
+    pluginLibs(group: 'com.xebialabs.overthere', name: 'overthere', version: '4.3.0'){
         exclude( module: 'bcprov-jdk15on')
         exclude( module: 'jzlib')
         exclude( module: 'sshj')
