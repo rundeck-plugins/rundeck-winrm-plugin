@@ -62,6 +62,7 @@ class OTWinRMPlugin {
     public static final String HOSTNAME_TRUST_STRICT = "strict";
     public static final String HOSTNAME_TRUST_ALL = "all";
 
+    public static final String FILE_COPY_DESTINATION_DIR = "file-copy-destination-dir";
 
     public static final String CMD_TYPE_CMD = "CMD";
     public static final String CMD_TYPE_POWERSHELL = "PowerShell";
@@ -96,6 +97,7 @@ class OTWinRMPlugin {
     public static final String CONFIG_WINRM_TIMEOUT = "winrmTimeout";
     public static final String CONFIG_TIMEOUT = "timeout";
     public static final String CONFIG_PASSWORD_STORAGE_PATH = "passwordStoragePath";
+    public static final String CONFIG_DST_FILE = "dstFile";
 
     public static final String PROJ_PROP_PREFIX = "project.";
     public static final String FWK_PROP_PREFIX = "framework.";
