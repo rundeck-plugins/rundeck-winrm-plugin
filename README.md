@@ -15,6 +15,16 @@ Download from the [releases page](https://github.com/rundeck-plugins/rundeck-win
 
 Copy the `rundeck-winrm-plugin-1.3.jar` to the `libext/` directory for Rundeck.
 
+Configure the Remote Windows Node
+====
+
+Be sure to follow the directions in the OverThere library for [Setting up a Windows host for Winrm Internal](https://github.com/xebialabs/overthere/#winrm-winrm_internal-and-winrm_native).
+
+If using Kerberos for authentication, also follow these guides:
+
+* [Kerberos - source host](https://github.com/xebialabs/overthere/#kerberos---source-host)
+* [Kerberos - remote host](https://github.com/xebialabs/overthere/#kerberos---remote-host)
+
 Configure The Plugin
 ====
 
@@ -67,20 +77,20 @@ Configure these node properties, or set "framework.X" or "project.X" in your fra
 * `winrm-spn-add-port` - true/false, if true, add the port to the SPN used for authentication. Default: false.
 * `winrm-spn-use-http` - true/false, if true, use 'HTTP' instead of 'WSMAN' as the protocol for the SPN used for authentication. Default: false.
 * `winrm-domain` - Kerberos domain to use if not set via the username.
-* `winrm-is-domain-user` - Option to truncate hostname when used as domain for kerberos login. If set to "true", replaces "host.domain.tld" with "domain.tld" appending to username.
+* `winrm-is-domain-member` - Option to truncate hostname when used as domain for kerberos login. If set to "true", replaces "host.domain.tld" with "domain.tld" appending to username.
 
 The username used for Kerberos authentication is created in this way:
 
 * if `username` value looks like `user@domain` use `username@DOMAIN` (uppercase domain name)
 * if username does not contain `@` then:
     * if `winrm-domain` is set, use `username@DOMAIN` (uppercase winrm-domain) 
-    * if `winrm-is-domain-user` is "true", then convert hostname of "host.domain.tld" to "domain.tld" and use `username@DOMAIN.TLD`
+    * if `winrm-is-domain-member` is "true", then convert hostname of "host.domain.tld" to "domain.tld" and use `username@DOMAIN.TLD`
     * otherwise use `username@HOSTNAME` (uppercase hostname)
 
 Configure Kerberos
 ----
 
-Kerberos authentication requires you to set up some Java System Properties, or a kb5.conf file to define which domains map to which Domain Controllers.  You can follow the [Kerberos Requirements](http://docs.oracle.com/javase/1.4.2/docs/guide/security/jgss/tutorials/KerberosReq.html) for Java.  To simply use a single domain and KDC, set these Java System Props at startup of the Rundeck server:
+Kerberos authentication requires you to set up some Java System Properties, or a kb5.conf file to define which domains map to which Domain Controllers.  You can follow the [Kerberos Requirements](http://docs.oracle.com/javase/7/docs/technotes/guides/security/jgss/tutorials/KerberosReq.html) for Java.  To simply use a single domain and KDC, set these Java System Props at startup of the Rundeck server:
 
     -Djava.security.krb5.realm=<example.com> -Djava.security.krb5.kdc=<kdc.example.com>. 
 
