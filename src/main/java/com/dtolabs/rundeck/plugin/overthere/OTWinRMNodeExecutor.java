@@ -79,6 +79,8 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String WINRM_LOCALE = "winrm-locale";
     public static final String WINRM_TIMEOUT = "winrm-timeout";
     
+    public static final String WINRM_CMD_TYPE = "winrm-cmd";
+
 
     public static final String WINRM_IS_DOMAIN_MEMBER = "winrm-is-domain-member";
     public static final String WINRM_DOMAIN = "winrm-domain";
@@ -87,6 +89,11 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String HOSTNAME_TRUST_BROWSER_COMPATIBLE = "browser-compatible";
     public static final String HOSTNAME_TRUST_STRICT = "strict";
     public static final String HOSTNAME_TRUST_ALL = "all";
+
+
+    public static final String CMD_TYPE_CMD = "CMD";
+    public static final String CMD_TYPE_POWERSHELL = "PowerShell";
+    public static final String DEFAULT_CMD_TYPE = CMD_TYPE_CMD;
 
 
     public static final String CERT_TRUST_DEFAULT = "default";
@@ -112,6 +119,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
     public static final String CONFIG_HOSTNAME_VERIFY = "hostnameVerify";
     public static final String CONFIG_SPN_ADD_PORT = "spnAddPort";
     public static final String CONFIG_SPN_USE_HTTP = "spnUseHttp";
+    public static final String CONFIG_CMD_TYPE = "cmd";
     public static final String CONFIG_LOCALE = "locale";
     public static final String CONFIG_WINRM_TIMEOUT = "winrmTimeout";
     private static final String CONFIG_TIMEOUT = "timeout";
@@ -158,6 +166,10 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
                     "If true, use HTTP instead of WSMAN for the SPN used for Kerberos Authentication.",
                     true, "false"))
 
+            .property(PropertyUtil.select(CONFIG_CMD_TYPE, "Command type",
+                    String.format("Supported command types: %s, %s", CMD_TYPE_CMD, CMD_TYPE_POWERSHELL),
+                    true, DEFAULT_CMD_TYPE, Arrays.asList(CMD_TYPE_CMD, CMD_TYPE_POWERSHELL)))
+
             .property(PropertyUtil.string(CONFIG_LOCALE, "WinRM Locale",
                     "Locale, default: en-us.", false, null))
 
@@ -197,6 +209,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             .mapping(CONFIG_SPN_ADD_PORT, PROJ_PROP_PREFIX + WINRM_SPN_ADD_PORT)
             .mapping(CONFIG_SPN_USE_HTTP, PROJ_PROP_PREFIX + WINRM_SPN_USE_HTTP)
             .mapping(CONFIG_LOCALE, PROJ_PROP_PREFIX + WINRM_LOCALE)
+            .mapping(CONFIG_CMD_TYPE, PROJ_PROP_PREFIX + WINRM_CMD_TYPE)
             .mapping(CONFIG_WINRM_TIMEOUT, PROJ_PROP_PREFIX + WINRM_TIMEOUT)
             .mapping(CONFIG_TIMEOUT, PROJ_PROP_PREFIX + WINRM_CONNECTION_TIMEOUT_PROPERTY)
             .mapping(CONFIG_PASSWORD_STORAGE_PATH, PROJ_PROP_PREFIX + WINRM_PASSWORD_STORAGE_PATH)
@@ -220,10 +233,11 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             System.out.println(logprompt + " Bad plugin context!  NULL ExecutionListener");
         }
 
-        context.getExecutionListener().log(Constants.VERBOSE_LEVEL, logprompt + buildCommandLine(command));
-
+        String cmdType;
         try {
             options = willUseConnectionOptions(new ConnectionOptionsBuilder(context, node, framework).build());
+            cmdType = options.get(WINRM_CMD_TYPE);
+            context.getExecutionListener().log(Constants.VERBOSE_LEVEL, logprompt + buildCommandLine(command, cmdType));
         } catch (ConfigurationException e) {
             context.getExecutionListener().log(Constants.ERR_LEVEL, logprompt + e.getMessage());
             return NodeExecutorResultImpl.createFailure(StepFailureReason.ConfigurationFailure, e.getMessage(), node);
@@ -239,7 +253,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             try {
                 result = connection.execute(ConsoleOverthereExecutionOutputHandler.sysoutHandler(),
                         ConsoleOverthereExecutionOutputHandler.syserrHandler(),
-                        buildCommandLine(command));
+                        buildCommandLine(command, cmdType));
             } finally {
                 connection.close();
             }
@@ -283,8 +297,11 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
      * @param command
      * @return
      */
-    protected CmdLine buildCommandLine(String[] command) {
-        return buildCmdLineRaw(command);
+    protected CmdLine buildCommandLine(String[] command, String OptionCmdLine) {
+        if (OptionCmdLine.equals(CMD_TYPE_POWERSHELL))
+            return buildCmdLinePowershell(command);
+        else
+            return buildCmdLineRaw(command);
     }
 
     /**
@@ -312,6 +329,17 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
         for (String s : args) {
             cmdLine.addRaw(s);
         }
+        return cmdLine;
+    }
+
+    public static CmdLine buildCmdLinePowershell(String... args) {
+        CmdLine cmdLine = new CmdLine();
+        cmdLine.addRaw("powershell");
+        StringBuilder command = new StringBuilder("");
+        for (String s : args) {
+            command.append(s.replaceAll("\"", "\\\\\"")).append(" ");
+        }
+        cmdLine.addRaw(command.toString());
         return cmdLine;
     }
 
@@ -605,6 +633,10 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             return resolveProperty(WINRM_TIMEOUT, null, getNode(), getFrameworkProject(), getFramework());
         }
         
+        public String getWinrmCmd() {
+            return resolveProperty(WINRM_CMD_TYPE, DEFAULT_CMD_TYPE, getNode(), getFrameworkProject(), getFramework());
+        }
+
         public Boolean isKerberosCacheEnabled() {
             return resolveBooleanProperty(KERBEROS_CACHE, DEFAULT_KERBEROS_CACHE, getNode(), getFrameworkProject(),
                     getFramework());
@@ -657,6 +689,7 @@ public class OTWinRMNodeExecutor implements NodeExecutor, Describable {
             options.set(OPERATING_SYSTEM, WINDOWS);
             options.set(CONNECTION_TIMEOUT_MILLIS, getConnectionTimeout());
             options.set(PORT, getPort(isHttps ? DEFAULT_HTTPS_PORT : DEFAULT_HTTP_PORT));
+            options.set(WINRM_CMD_TYPE, getWinrmCmd());
             options.set(CifsConnectionBuilder.CONNECTION_TYPE, CifsConnectionType.WINRM_INTERNAL);
             options.set(CifsConnectionBuilder.WINRM_ENABLE_HTTPS, isHttps);
             options.set(CifsConnectionBuilder.WINRM_KERBEROS_ADD_PORT_TO_SPN, isWinrmSpnAddPort());
