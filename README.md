@@ -44,7 +44,7 @@ These Node attributes are used to connect to the remote host:
 * `username` - Remote username. If using Kerberos, see [Using Kerberos Authentication](#using-kerberos-authentication)
 * `hostname` - Remote host. Can include "host:port" to specify port number other than the default 5985/5986 (http/https).
 
-Password authentcation can be performed in one of two ways:
+Password authentication can be performed in one of two ways:
 
 1. Create a Rundeck Job with a [Secure Authentication Option][1], to pass in the password to use.  The default name
 of this option should be "winrmPassword", but you can change the name that is expected, if necessary.
