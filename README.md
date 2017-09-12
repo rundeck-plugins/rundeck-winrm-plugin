@@ -1,10 +1,11 @@
 Rundeck WinRM Plugin
 --------------------
 
-This is a [Rundeck Node Execution plugin][1] that uses WinRM to connect to Windows and execute commands.  It uses the [OverThere Library][2] to provide the WinRM implementation, and uses Basic authentication over HTTPS.
+These are a [Rundeck Node Executor plugin][1] and a [Rundeck File Copier plugin][2] that uses WinRM to connect to Windows and execute commands.  It uses the [OverThere Library][3] to provide the WinRM implementation, and uses Basic authentication over HTTPS.
 
-[1]: http://rundeck.org/docs/manual/plugins.html#node-execution-plugins
-[2]: https://github.com/xebialabs/overthere/
+[1]: http://rundeck.org/docs/developer/node-executor-plugin.html
+[2]: http://rundeck.org/docs/developer/file-copier-plugin.html
+[3]: https://github.com/xebialabs/overthere/
 
 Compatible with Rundeck 2.3.x+
 
@@ -28,18 +29,22 @@ If using Kerberos for authentication, also follow these guides:
 Configure The Plugin
 ====
 
-This plugin provides a NodeExecutor called `overthere-winrm`, which you can set as on your node defintion:
+This plugin provides a NodeExecutor and a FileCopier called `overthere-winrm`, which you can set as on your node definition:
 
 	<node name="winNode" node-executor="overthere-winrm" .../>
 
-Or set as the default NodeExecutor for your project/framework properties file, with `service.NodeExecutor.default.provider=overthere-winrm`.
+and/or
+
+	<node name="winNode" file-copier="overthere-winrm" .../>
+
+Or set as the default NodeExecutor for your project/framework properties file, with `service.NodeExecutor.default.provider=overthere-winrm` and `service.FileCopier.default.provider=overthere-winrm`.
 
 These Node attributes are used to connect to the remote host:
 
 * `username` - Remote username. If using Kerberos, see [Using Kerberos Authentication](#using-kerberos-authentication)
 * `hostname` - Remote host. Can include "host:port" to specify port number other than the default 5985/5986 (http/https).
 
-Password authentcation can be performed in one of two ways:
+Password authentication can be performed in one of two ways:
 
 1. Create a Rundeck Job with a [Secure Authentication Option][1], to pass in the password to use.  The default name
 of this option should be "winrmPassword", but you can change the name that is expected, if necessary.
@@ -60,6 +65,9 @@ These additional configuration attributes can be set on the Node, or in the proj
 * `winrm-password-option` - Specifies a [Secure Authentication Option][1] from a Job to use as the authentication password. (format: "NAME" ).
 	* default-value: "winrmPassword", so simply define a Secure Authentication Option on your Job with the name "winrmPassword".
 * `winrm-password-storage-path` - Specifies a [Key Storage Path][] to look up the authentication password from.  It can contain property references like `${node.name}` to evaluate at runtime.  If specified, it will be used instead of the `winrm-password-option`.
+
+For file copier plugin:
+* `file-copy-destination-dir` - Folder location where the remote script to be executed will be copied
 
 [Key Storage Path]: http://rundeck.org/docs/administration/key-storage.html
 
