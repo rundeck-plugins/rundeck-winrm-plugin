@@ -33,12 +33,13 @@ class OTWinRMPlugin {
     public static final int DEFAULT_WINRM_CONNECTION_TIMEOUT = 15000;
     public static final boolean DEFAULT_WINRM_CONNECTION_ENCRYPTED = true;
     public static final String WINRM_PASSWORD_OPTION = "winrm-password-option";
+    public static final String WINRM_USER_OPTION = "winrm-user-option";
     public static final String WINRM_PASSWORD_STORAGE_PATH = "winrm-password-storage-path";
     public static final String DEFAULT_WINRM_PASSWORD_OPTION = "winrmPassword";
+    public static final String DEFAULT_WINRM_USER_OPTION = "winrmUser";
     public static final int DEFAULT_HTTPS_PORT = 5986;
     public static final int DEFAULT_HTTP_PORT = 5985;
     public static final String WINRM_CONNECTION_TIMEOUT_PROPERTY = "winrm-connection-timeout";
-    public static final String WINRM_USER = "winrm-user";
     public static final String WINRM_PORT = "winrm-port";
     public static final String WINRM_AUTH_TYPE = "winrm-auth-type";
     public static final String WINRM_CERT_TRUST = "winrm-cert-trust";
@@ -79,6 +80,7 @@ class OTWinRMPlugin {
     public static final String DEFAULT_WINRM_PROTOCOL = WINRM_PROTOCOL_HTTPS;
     public static final String KERBEROS_CACHE = "kerberos-cache";
     public static final Boolean DEFAULT_KERBEROS_CACHE = false;
+    public static final String DEFAULT_WINRM_USER = "rundeck";
 
     public static final WinrmHttpsCertificateTrustStrategy DEFAULT_CERT_TRUST =
             WinrmHttpsCertificateTrustStrategy.STRICT;
@@ -97,6 +99,7 @@ class OTWinRMPlugin {
     public static final String CONFIG_WINRM_TIMEOUT = "winrmTimeout";
     public static final String CONFIG_TIMEOUT = "timeout";
     public static final String CONFIG_PASSWORD_STORAGE_PATH = "passwordStoragePath";
+    public static final String CONFIG_USER = "userWinrm";
     public static final String CONFIG_DST_FILE = "dstFile";
 
     public static final String PROJ_PROP_PREFIX = "project.";
@@ -167,6 +170,8 @@ class OTWinRMPlugin {
                                 )
                                 .build()
                 )
+                .property(PropertyUtil.string(CONFIG_USER, "WinRM User",
+                        "User to connect with. Default: rundeck", false, DEFAULT_WINRM_USER))
                 .mapping(CONFIG_AUTHENTICATION, PROJ_PROP_PREFIX + WINRM_AUTH_TYPE)
                 .mapping(CONFIG_PROTOCOL, PROJ_PROP_PREFIX + WINRM_PROTOCOL)
                 .mapping(CONFIG_CERT_TRUST, PROJ_PROP_PREFIX + WINRM_CERT_TRUST)
@@ -176,7 +181,8 @@ class OTWinRMPlugin {
                 .mapping(CONFIG_LOCALE, PROJ_PROP_PREFIX + WINRM_LOCALE)
                 .mapping(CONFIG_WINRM_TIMEOUT, PROJ_PROP_PREFIX + WINRM_TIMEOUT)
                 .mapping(CONFIG_TIMEOUT, PROJ_PROP_PREFIX + WINRM_CONNECTION_TIMEOUT_PROPERTY)
-                .mapping(CONFIG_PASSWORD_STORAGE_PATH, PROJ_PROP_PREFIX + WINRM_PASSWORD_STORAGE_PATH);
+                .mapping(CONFIG_PASSWORD_STORAGE_PATH, PROJ_PROP_PREFIX + WINRM_PASSWORD_STORAGE_PATH)
+                .mapping(CONFIG_USER, PROJ_PROP_PREFIX + WINRM_USER_OPTION);
     }
 
     /**
@@ -358,7 +364,7 @@ class OTWinRMPlugin {
             if (null != nonBlank(getNode().getUsername()) || getNode().containsUserName()) {
                 user = nonBlank(getNode().getUsername());
             } else {
-                user = resolveProperty(WINRM_USER, null, getNode(), getFrameworkProject(), getFramework());
+                user = resolveProperty(WINRM_USER_OPTION, DEFAULT_WINRM_USER_OPTION, getNode(), getFrameworkProject(), getFramework());
             }
 
             if (null != user && user.contains("${")) {
