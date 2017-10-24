@@ -60,6 +60,14 @@ public class OTWinRMFileCopier extends OTWinRMPlugin implements DestinationFileC
         return message;
     }
 
+    private static void close(Closeable c) throws FileCopierException {
+        try {
+            c.close();
+        } catch (IOException ioe) {
+            throw new FileCopierException(ioe.getMessage(), Reason.FileNotStreamableError);
+        }
+    }
+
     @Override
     public String copyFileStream(ExecutionContext context, InputStream inputStream, INodeEntry node, String destination) throws FileCopierException {
         ConnectionOptions options = null;
@@ -98,11 +106,15 @@ public class OTWinRMFileCopier extends OTWinRMPlugin implements DestinationFileC
                 }
 
                 context.getExecutionListener().log(Constants.VERBOSE_LEVEL, logprompt + "Copying file to " + dst.getPath());
+                OutputStream destStream = dst.getOutputStream();
                 try {
-                    IOUtils.copy(inputStream, dst.getOutputStream());
+                    IOUtils.copy(inputStream, destStream);
                 } catch (IOException ioe) {
                     context.getExecutionListener().log(Constants.ERR_LEVEL, logprompt + "Error while copying the file");
                     throw new FileCopierException(buildErrorMessage(context, ioe, logprompt), Reason.IOWriteError);
+                } finally {
+                    if (destStream != null)
+                        close(destStream);
                 }
                 context.getExecutionListener().log(Constants.VERBOSE_LEVEL, logprompt + "File copied at: " + dst.getPath());
                 return dst.getPath();
@@ -121,18 +133,26 @@ public class OTWinRMFileCopier extends OTWinRMPlugin implements DestinationFileC
 
     @Override
     public String copyFile(ExecutionContext context, File file, INodeEntry node, String destination) throws FileCopierException {
+        FileInputStream fileStream = null;
         try {
-            InputStream fileStream = new FileInputStream(file);
+            fileStream = new FileInputStream(file);
             return copyFileStream(context, fileStream, node, destination);
-        } catch (IOException ioe) {
-            throw new FileCopierException(ioe.getMessage(), Reason.FileNotStreamableError);
+        } catch (FileNotFoundException fnf) {
+            throw new FileCopierException(fnf.getMessage(), Reason.FileNotStreamableError);
+        } finally {
+            if (fileStream != null)
+                close(fileStream);
         }
     }
 
     @Override
     public String copyScriptContent(ExecutionContext context, String script, INodeEntry node, String destination) throws FileCopierException {
-        InputStream scriptStream = new ByteArrayInputStream(script.getBytes());
-        return copyFileStream(context, scriptStream, node, destination);
+        ByteArrayInputStream scriptStream = new ByteArrayInputStream(script.getBytes());
+        try {
+            return copyFileStream(context, scriptStream, node, destination);
+        } finally {
+            close(scriptStream);
+        }
     }
 
     @Override
