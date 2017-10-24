@@ -96,17 +96,19 @@ public class OTWinRMFileCopier extends OTWinRMPlugin implements DestinationFileC
                     dst = connection.getTempFile("RD_WINRM_TMP");
                     context.getExecutionListener().log(Constants.VERBOSE_LEVEL, logprompt + "Temporary file acquired " + dst.getPath());
                 }
-                context.getExecutionListener().log(Constants.VERBOSE_LEVEL, logprompt + "Destination file acquired " + dst.getPath());
 
+                context.getExecutionListener().log(Constants.VERBOSE_LEVEL, logprompt + "Copying file to " + dst.getPath());
                 try {
                     IOUtils.copy(inputStream, dst.getOutputStream());
                 } catch (IOException ioe) {
+                    context.getExecutionListener().log(Constants.ERR_LEVEL, logprompt + "Error while copying the file");
                     throw new FileCopierException(buildErrorMessage(context, ioe, logprompt), Reason.IOWriteError);
                 }
                 context.getExecutionListener().log(Constants.VERBOSE_LEVEL, logprompt + "File copied at: " + dst.getPath());
                 return dst.getPath();
 
             } finally {
+                context.getExecutionListener().log(Constants.VERBOSE_LEVEL, logprompt + "Closing connection");
                 connection.close();
             }
         } catch (WinRmRuntimeIOException re) {
