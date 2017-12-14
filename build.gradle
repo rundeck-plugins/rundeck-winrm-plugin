@@ -1,7 +1,7 @@
 ext.pluginClassNames='com.dtolabs.rundeck.plugin.overthere.OTWinRMNodeExecutor,com.dtolabs.rundeck.plugin.overthere.OTWinRMFileCopier'
 
 defaultTasks 'clean','build'
-version = '1.3.3-SNAPSHOT'
+version = '1.3.4-SNAPSHOT'
 ext.rundeckPluginVersion= '1.1'
 apply plugin: 'java'
 apply plugin: 'idea'
@@ -114,51 +114,58 @@ task createPom << {
                 }
             }
 
-            build{
-                plugins{
-                    plugin{
-                        artifactId 'maven-compiler-plugin'
-                        version '2.3.2'
-                        configuration{
-                            source '1.6'
-                            target '1.6'
-                        }
-                    }
-                    plugin() {
-                        artifactId('maven-assembly-plugin')
-                        version('2.2.2')
-                        executions() {
-                            execution() {
-                                id('make-assembly')
-                                phase('package')
-                                goals() {
-                                    goal('single')
-                                }
-                            }
-                        }
-                        configuration() {
-                            appendAssemblyId('false')
-                            descriptors() {
-                                descriptor('src/main/assembly/jar.xml')
-                            }
-                            archive() {
-                                manifestEntries() {
-                                    'Rundeck-Plugin-Version'(rundeckPluginVersion)
-                                    'Rundeck-Plugin-File-Version'(version)
-                                    'Rundeck-Plugin-Archive'('true')
-                                    'Rundeck-Plugin-Classnames'(pluginClassNames)
-                                    'Rundeck-Plugin-Libs'(libList)
-                                }
-                            }
-                        }
-                    }
-                }
+            properties {
+                'plugin.release.version'('2.5.1')
             }
+
             scm{
                 connection 'scm:git:git@github.com:rundeck-plugins/rundeck-winrm-plugin.git'
                 developerConnection 'scm:git:git@github.com:rundeck-plugins/rundeck-winrm-plugin.git'
                 url 'git@github.com:rundeck-plugins/rundeck-winrm-plugin.git'
                 tag 'HEAD'
+            }
+        }
+    }.withXml {
+        asNode().appendNode('build').with {
+            appendNode('plugins').with {
+                appendNode('plugin').with {
+                    appendNode('artifactId', 'maven-compiler-plugin')
+                    appendNode('version', '2.3.2')
+                    appendNode('configuration').with {
+                        appendNode('source', '1.6')
+                        appendNode('target', '1.6')
+                    }
+                }
+                appendNode('plugin').with {
+                    appendNode('artifactId', 'maven-assembly-plugin')
+                    appendNode('version', '2.2.2')
+                    appendNode('executions').appendNode('execution').with {
+                        appendNode('id', 'make-assembly')
+                        appendNode('phase', 'package')
+                        appendNode('goals').with {
+                            appendNode('goal', 'single')
+                        }
+                    }
+                    appendNode('configuration').with {
+                        appendNode('appendAssemblyId', 'false')
+                        appendNode('descriptors').with {
+                            appendNode('descriptor', 'src/main/assembly/jar.xml')
+                        }
+                        appendNode('archive').with {
+                            appendNode('manifestEntries').with {
+                                appendNode('Rundeck-Plugin-Version', this.rundeckPluginVersion)
+                                appendNode('Rundeck-Plugin-File-Version', this.version)
+                                appendNode('Rundeck-Plugin-Archive', 'true')
+                                appendNode('Rundeck-Plugin-Classnames', this.pluginClassNames)
+                                appendNode('Rundeck-Plugin-Libs', libList)
+                            }
+                        }
+                    }
+                }
+                appendNode('plugin').with {
+                    appendNode('artifactId', 'maven-release-plugin')
+                    appendNode('version', '${plugin.release.version}')
+                }
             }
         }
     }.writeTo("pom.xml")
