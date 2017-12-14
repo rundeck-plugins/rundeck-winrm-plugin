@@ -35,15 +35,15 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-nop</artifactId>
-      <version>1.6.3</version>
+      <groupId>com.xebialabs.overthere</groupId>
+      <artifactId>overthere</artifactId>
+      <version>5.0.2</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
-      <groupId>com.xebialabs.overthere</groupId>
-      <artifactId>overthere</artifactId>
-      <version>4.3.0</version>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-nop</artifactId>
+      <version>1.6.3</version>
       <scope>compile</scope>
     </dependency>
   </dependencies>
@@ -80,7 +80,7 @@
               <Rundeck-Plugin-File-Version>1.3.4-SNAPSHOT</Rundeck-Plugin-File-Version>
               <Rundeck-Plugin-Archive>true</Rundeck-Plugin-Archive>
               <Rundeck-Plugin-Classnames>com.dtolabs.rundeck.plugin.overthere.OTWinRMNodeExecutor,com.dtolabs.rundeck.plugin.overthere.OTWinRMFileCopier</Rundeck-Plugin-Classnames>
-              <Rundeck-Plugin-Libs>lib/overthere-4.3.0.jar lib/slf4j-nop-1.6.3.jar lib/jcifs-1.3.17.jar lib/httpcore-4.4.1.jar lib/httpclient-4.4.1.jar lib/slf4j-api-1.7.12.jar lib/scannit-1.4.0.jar lib/commons-codec-1.10.jar lib/truezip-file-7.7.8.jar lib/javassist-3.17.1-GA.jar lib/truezip-driver-zip-7.7.8.jar lib/truezip-kernel-7.7.8.jar lib/truezip-swing-7.7.8.jar lib/commons-compress-1.9.jar lib/annotations-3.0.0.jar lib/truezip-driver-file-7.7.8.jar</Rundeck-Plugin-Libs>
+              <Rundeck-Plugin-Libs>lib/overthere-5.0.2.jar lib/slf4j-nop-1.6.3.jar lib/scannit-1.4.1.jar lib/jcifs-1.3.17.jar lib/smbj-0.3.0.jar lib/mbassador-1.3.0.jar lib/bcpkix-jdk15on-1.57.jar lib/httpclient-4.4.1.jar lib/httpcore-4.4.1.jar lib/commons-codec-1.10.jar lib/truezip-file-7.7.8.jar lib/javassist-3.17.1-GA.jar lib/truezip-driver-zip-7.7.8.jar lib/truezip-kernel-7.7.8.jar lib/truezip-swing-7.7.8.jar lib/commons-compress-1.9.jar lib/annotations-3.0.0.jar lib/truezip-driver-file-7.7.8.jar lib/slf4j-api-1.7.25.jar</Rundeck-Plugin-Libs>
             </manifestEntries>
           </archive>
         </configuration>

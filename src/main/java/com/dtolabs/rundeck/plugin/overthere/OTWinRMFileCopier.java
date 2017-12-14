@@ -17,7 +17,7 @@ import com.xebialabs.overthere.OverthereConnection;
 import com.xebialabs.overthere.OverthereFile;
 import com.xebialabs.overthere.RuntimeIOException;
 import com.xebialabs.overthere.cifs.CifsConnectionBuilder;
-import com.xebialabs.overthere.cifs.winrm.WinRmRuntimeIOException;
+import com.xebialabs.overthere.winrm.WinRmRuntimeIOException;
 import com.xebialabs.overthere.util.DefaultAddressPortMapper;
 import org.apache.commons.compress.utils.IOUtils;
 

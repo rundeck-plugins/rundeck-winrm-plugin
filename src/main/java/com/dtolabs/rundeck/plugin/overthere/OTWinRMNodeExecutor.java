@@ -19,7 +19,7 @@ import com.xebialabs.overthere.ConnectionOptions;
 import com.xebialabs.overthere.OverthereConnection;
 import com.xebialabs.overthere.RuntimeIOException;
 import com.xebialabs.overthere.cifs.CifsConnectionBuilder;
-import com.xebialabs.overthere.cifs.winrm.WinRmRuntimeIOException;
+import com.xebialabs.overthere.winrm.WinRmRuntimeIOException;
 import com.xebialabs.overthere.util.ConsoleOverthereExecutionOutputHandler;
 import com.xebialabs.overthere.util.DefaultAddressPortMapper;
 
