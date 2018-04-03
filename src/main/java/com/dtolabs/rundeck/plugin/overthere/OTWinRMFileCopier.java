@@ -16,7 +16,7 @@ import com.xebialabs.overthere.ConnectionOptions;
 import com.xebialabs.overthere.OverthereConnection;
 import com.xebialabs.overthere.OverthereFile;
 import com.xebialabs.overthere.RuntimeIOException;
-import com.xebialabs.overthere.cifs.CifsConnectionBuilder;
+import com.xebialabs.overthere.smb.SmbConnectionBuilder;
 import com.xebialabs.overthere.winrm.WinRmRuntimeIOException;
 import com.xebialabs.overthere.util.DefaultAddressPortMapper;
 import org.apache.commons.compress.utils.IOUtils;
@@ -92,7 +92,7 @@ public class OTWinRMFileCopier extends OTWinRMPlugin implements DestinationFileC
         context.getExecutionListener().log(Constants.VERBOSE_LEVEL, logprompt + options);
 
         try {
-            final OverthereConnection connection = new CifsConnectionBuilder(CifsConnectionBuilder.CIFS_PROTOCOL, options,
+            final OverthereConnection connection = new SmbConnectionBuilder(SmbConnectionBuilder.SMB_PROTOCOL, options,
                     new DefaultAddressPortMapper()).connect();
 
             try {
