@@ -144,7 +144,7 @@ This is a seperate topic, but you can follow the guide described in the OverTher
 
 [winrm_host_setup]: https://github.com/xebialabs/overthere/#smb_cifs_host_setup_winrm
 
-Here are also some notes on the wiki: [wikilink]
+Here are also some notes on the wiki: [Windows Server Setup](https://github.com/rundeck-plugins/rundeck-winrm-plugin/wiki/Windows-Server-Setup)
 
 Caveats
 ====
