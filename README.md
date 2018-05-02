@@ -140,9 +140,9 @@ the `winrm-spn-add-port` and `winrm-spn-use-http` configuration options above.
 Configure a Windows Server for WinRM
 ====
 
-This is a seperate topic, but you can follow the guide described in the OverThere project for [WINRM_HTTPS Host Setup][1].
+This is a seperate topic, but you can follow the guide described in the OverThere project for [WINRM Host Setup][winrm_host_setup], see **Step 10**.
 
-[1]: https://github.com/xebialabs/overthere/#cifs_host_setup
+[winrm_host_setup]: https://github.com/xebialabs/overthere/#smb_cifs_host_setup_winrm
 
 Here are also some notes on the wiki: [wikilink]
 
