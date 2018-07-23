@@ -43,8 +43,6 @@ dependencies {
         exclude( module: 'icu4j')
         exclude( module: 'jcl-over-slf4j')
     }
-//    pluginLibs(group: 'org.slf4j', name: 'slf4j-simple', version: '1.6.3')
-    pluginLibs(group: 'org.slf4j', name: 'slf4j-nop', version: '1.6.3')
 
     compile(group: 'org.rundeck', name: 'rundeck-core', version: rundeckVersion)
 }
