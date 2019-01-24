@@ -78,7 +78,7 @@ jar {
                 'Rundeck-Plugin-Rundeck-Compatibility-Version': '2.3.2+',
                 'Rundeck-Plugin-Tags': 'java,node executor,file copier,WinRM,Windows',
                 'Rundeck-Plugin-License': 'Apache 2.0',
-                'Rundeck-Plugin-Source-Link': 'https://github.com/rundeck-plugins/http-notification',
+                'Rundeck-Plugin-Source-Link': 'https://github.com/sjrd218/rundeck-winrm-plugin',
                 'Rundeck-Plugin-Target-Host-Compatibility': 'all',
                 'Rundeck-Plugin-Author': 'Rundeck, Inc.'
 
