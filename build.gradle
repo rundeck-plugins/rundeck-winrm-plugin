@@ -72,7 +72,15 @@ jar {
                 'Rundeck-Plugin-Version': rundeckPluginVersion,
                 'Rundeck-Plugin-Archive': 'true',
                 'Rundeck-Plugin-Classnames': pluginClassNames,
-                'Rundeck-Plugin-Libs': "${libList}"
+                'Rundeck-Plugin-Libs': "${libList}", 
+                'Rundeck-Plugin-Name' : 'Rundeck WinRM',
+                'Rundeck-Plugin-Description' : 'Rundeck Node Executor and File Copier plugins that uses WinRM to connect to Windows and execute commands. It uses the OverThere Library to provide the WinRM implementation, and uses Basic authentication over HTTPS.',
+                'Rundeck-Plugin-Rundeck-Compatibility-Version': '2.3.2+',
+                'Rundeck-Plugin-Tags': 'java,node executor,file copier,WinRM,Windows',
+                'Rundeck-Plugin-License': 'Apache 2.0',
+                'Rundeck-Plugin-Source-Link': 'https://github.com/rundeck-plugins/http-notification',
+                'Rundeck-Plugin-Target-Host-Compatibility': 'all',
+                'Rundeck-Plugin-Author': 'Rundeck, Inc.'
 
     }
 }
