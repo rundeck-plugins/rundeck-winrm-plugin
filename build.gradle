@@ -48,9 +48,6 @@ dependencies {
         exclude ( group: "org.bouncycastle", module: "bcprov-jdk15on")
     }
 
-//    pluginLibs(group: 'org.slf4j', name: 'slf4j-simple', version: '1.6.3')
-    pluginLibs(group: 'org.slf4j', name: 'slf4j-nop', version: '1.6.3')
-
     compile(group: 'org.rundeck', name: 'rundeck-core', version: rundeckVersion)
 }
 
