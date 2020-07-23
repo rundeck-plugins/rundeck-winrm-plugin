@@ -14,7 +14,7 @@ Install
 
 Download from the [releases page](https://github.com/rundeck-plugins/rundeck-winrm-plugin/releases).
 
-Copy the `rundeck-winrm-plugin-1.3.jar` to the `libext/` directory for Rundeck.
+Copy the `rundeck-winrm-plugin-x.x.xjar` to the `libext/` directory for Rundeck.
 
 Configure the Remote Windows Node
 ====
