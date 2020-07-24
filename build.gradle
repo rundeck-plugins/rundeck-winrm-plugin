@@ -42,6 +42,7 @@ dependencies {
         exclude( module: 'jaxen')
         exclude( module: 'icu4j')
         exclude( module: 'jcl-over-slf4j')
+        exclude( module: 'slf4j-api')
     }
     // bump version brought by com.xebialabs.overthere, which is affected by CVE-2018-1000613
     pluginLibs ("org.bouncycastle:bcpkix-jdk15on:1.62") {
