@@ -3,8 +3,8 @@ Rundeck WinRM Plugin
 
 These are a [Rundeck Node Executor plugin][1] and a [Rundeck File Copier plugin][2] that uses WinRM to connect to Windows and execute commands.  It uses the [OverThere Library][3] to provide the WinRM implementation, and uses Basic authentication over HTTPS.
 
-[1]: http://rundeck.org/docs/developer/node-executor-plugin.html
-[2]: http://rundeck.org/docs/developer/file-copier-plugin.html
+[1]: https://docs.rundeck.com/docs/developer/04-node-execution-plugins.html
+[2]: https://docs.rundeck.com/docs/developer/04-file-copier-plugins.html
 [3]: https://github.com/xebialabs/overthere/
 
 Compatible with Rundeck 2.3.x+
